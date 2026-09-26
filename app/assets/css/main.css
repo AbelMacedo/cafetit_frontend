@@ -1,0 +1,70 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/*
+ * Paleta de Cafetit: beige, café y naranja.
+ *
+ * El naranja es el color de acción (botones, foco, estado activo) porque
+ * necesita saltar a la vista en una pantalla que se opera con prisa. El
+ * café es la marca. El beige hace de neutral: sustituye a los grises fríos
+ * de la plantilla, que en una cafetería se ven ajenos.
+ *
+ * El POS no busca el nivel de diseño de la landing, pero sí verse cuidado
+ * desde el principio: teniendo la paleta en el tema, cada componente nuevo
+ * nace con ella en lugar de arrastrar los colores por omisión.
+ */
+@theme static {
+  --font-sans: 'Public Sans', sans-serif;
+
+  /* Naranja — acción */
+  --color-naranja-50: #FFF6ED;
+  --color-naranja-100: #FFEAD4;
+  --color-naranja-200: #FDD0A8;
+  --color-naranja-300: #FBB071;
+  --color-naranja-400: #F88639;
+  --color-naranja-500: #F56516;
+  --color-naranja-600: #E5490C;
+  --color-naranja-700: #BE340C;
+  --color-naranja-800: #972B12;
+  --color-naranja-900: #7A2612;
+  --color-naranja-950: #421007;
+
+  /* Café — marca */
+  --color-cafe-50: #FAF6F2;
+  --color-cafe-100: #F3EAE0;
+  --color-cafe-200: #E6D3C0;
+  --color-cafe-300: #D4B596;
+  --color-cafe-400: #BF906A;
+  --color-cafe-500: #AC744C;
+  --color-cafe-600: #9A6041;
+  --color-cafe-700: #804C37;
+  --color-cafe-800: #6B4032;
+  --color-cafe-900: #58362B;
+  --color-cafe-950: #2F1B15;
+
+  /* Beige — neutral cálido (fondos, bordes, texto) */
+  --color-beige-50: #FBF9F6;
+  --color-beige-100: #F5F1EA;
+  --color-beige-200: #EAE3D8;
+  --color-beige-300: #D9CFC0;
+  --color-beige-400: #B8AB99;
+  --color-beige-500: #9A8B78;
+  --color-beige-600: #7D6F5E;
+  --color-beige-700: #63584B;
+  --color-beige-800: #4A4139;
+  --color-beige-900: #332D28;
+  --color-beige-950: #1C1815;
+}
+
+/*
+ * Tamaños mínimos para operación táctil.
+ *
+ * En un POS la velocidad de captura es una funcionalidad: un botón que se
+ * falla dos veces cuesta más que una pantalla fea.
+ */
+@layer components {
+  .toque {
+    min-height: 3rem;
+    min-width: 3rem;
+  }
+}
