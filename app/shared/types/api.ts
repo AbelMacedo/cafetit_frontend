@@ -175,6 +175,174 @@ export interface Venta {
   cancelacion: { fecha: string, motivo: string } | null
 }
 
+/* ---------------------------------------------------------------------
+ * Administración del catálogo
+ * ------------------------------------------------------------------ */
+
+export interface ValorAtributo {
+  id: number
+  valor: string
+  codigo: string
+}
+
+export interface AtributoProducto {
+  id: number
+  nombre: string
+  codigo: string
+  valores: ValorAtributo[]
+}
+
+/** Lo que el formulario manda al guardar. Nunca incluye el slug generado. */
+export interface VarianteAGuardar {
+  id?: number
+  price_cents: number
+  attribute_value_ids: number[]
+  tracks_stock: boolean
+  min_stock?: number | null
+  is_active: boolean
+}
+
+export interface ProductoAGuardar {
+  name: string
+  category_id: number
+  description?: string | null
+  is_active: boolean
+  show_on_landing: boolean
+  variants: VarianteAGuardar[]
+}
+
+/* ---------------------------------------------------------------------
+ * Inventario
+ * ------------------------------------------------------------------ */
+
+export type EstatusLote = 'active' | 'depleted' | 'expired' | 'discarded'
+
+export type MotivoMerma = 'expired' | 'damaged' | 'preparation_error' | 'courtesy' | 'other'
+
+export interface Lote {
+  id: number
+  lote: string | null
+  proveedor: string | null
+  producto?: {
+    variante_id: number
+    nombre: string
+    variante: string | null
+  }
+  recibidas: number
+  restantes: number
+  costo_unitario: Money
+  valor_restante: Money
+  ingreso: string
+  caducidad: string | null
+  /** Negativo = ya caducó. Nulo = no caduca. Trunca hacia abajo. */
+  horas_para_caducar: number | null
+  caducado: boolean
+  estatus: EstatusLote
+  estatus_texto: string
+  notas: string | null
+}
+
+export interface ResumenCaducidades {
+  ventana_horas: number
+  lotes: number
+  piezas: number
+  ya_caducados: number
+  /** Lo que se pierde si no se vende: el argumento del módulo. */
+  valor_en_riesgo: Money
+}
+
+/*
+ * Reportes
+ */
+
+export interface LineaDia {
+  /** 'YYYY-MM-DD' del calendario del negocio, no de UTC. */
+  fecha: string
+  cantidad: number
+  total: Money
+}
+
+export interface LineaMetodo {
+  metodo: 'cash' | 'card' | 'transfer'
+  etiqueta: string
+  /** Cuenta pagos, no ventas: una venta mixta aparece en dos renglones. */
+  cantidad: number
+  total: Money
+}
+
+export interface LineaProducto {
+  nombre: string
+  variante: string | null
+  cantidad: number
+  total: Money
+}
+
+export interface LineaCajero {
+  cajero: string
+  cantidad: number
+  total: Money
+}
+
+export interface VentaCancelada {
+  folio: number
+  fecha: string
+  cajero: string
+  motivo: string | null
+  total: Money
+}
+
+export interface ReporteVentas {
+  periodo: {
+    desde: string
+    hasta: string
+    zona: string
+    dias_con_ventas: number
+  }
+  generado_en: string
+  vacio: boolean
+  resumen: {
+    cantidad: number
+    total: Money
+    subtotal: Money
+    descuentos: Money
+    impuesto: Money
+    ticket_promedio: Money
+    promedio_diario: Money
+  }
+  por_dia: LineaDia[]
+  por_metodo: LineaMetodo[]
+  mas_vendidos: LineaProducto[]
+  por_cajero: LineaCajero[]
+  canceladas: {
+    cantidad: number
+    total: Money
+    detalle: VentaCancelada[]
+  }
+}
+
+/*
+ * Avisos del mostrador
+ */
+
+export type SeveridadAviso = 'info' | 'warning' | 'critical'
+
+export interface Aviso {
+  id: string
+  evento: string
+  evento_texto: string
+  severidad: SeveridadAviso
+  severidad_texto: string
+  titulo: string
+  cuerpo: string | null
+  /** Pantalla a la que lleva al tocarlo. */
+  enlace: string | null
+  /** Datos propios del evento: para caducidades, el lote y lo que arriesga. */
+  contexto: Record<string, unknown>
+  leida: boolean
+  creada_en: string | null
+  leida_en: string | null
+}
+
 /** Respuesta de un recurso individual. */
 export interface ApiResource<T> {
   data: T

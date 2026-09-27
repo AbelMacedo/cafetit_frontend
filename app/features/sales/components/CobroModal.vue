@@ -105,8 +105,8 @@ onMounted(() => pagarTodo('cash'))
             :key="metodo"
             block
             size="lg"
-            :variant="montos[metodo as Metodo] === total ? 'solid' : 'outline'"
-            color="neutral"
+            :variant="montos[metodo as Metodo] === total ? 'soft' : 'outline'"
+            :color="montos[metodo as Metodo] === total ? 'primary' : 'neutral'"
             class="toque"
             @click="pagarTodo(metodo as Metodo)"
           >
@@ -121,16 +121,11 @@ onMounted(() => pagarTodo('cash'))
             class="flex items-center gap-3"
           >
             <label class="w-32 text-sm text-beige-700 dark:text-beige-300">{{ etiqueta }}</label>
-            <UInput
-              v-model.number="montos[metodo as Metodo]"
-              type="number"
-              min="0"
+            <CampoPesos
+              v-model="montos[metodo as Metodo]"
+              size="lg"
               class="flex-1"
-              :ui="{ base: 'tabular-nums text-right' }"
             />
-            <span class="w-24 text-right text-sm tabular-nums text-beige-600">
-              {{ formatearCentavos(montos[metodo as Metodo]) }}
-            </span>
           </div>
         </div>
 
@@ -140,12 +135,10 @@ onMounted(() => pagarTodo('cash'))
         >
           <div class="flex items-center gap-3">
             <label class="w-32 text-sm text-beige-700 dark:text-beige-300">Recibido</label>
-            <UInput
-              v-model.number="recibido"
-              type="number"
-              min="0"
+            <CampoPesos
+              v-model="recibido"
+              size="lg"
               class="flex-1"
-              :ui="{ base: 'tabular-nums text-right' }"
             />
           </div>
 

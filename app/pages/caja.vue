@@ -1,25 +1,68 @@
 <script setup lang="ts">
-import { useAuthStore } from '~/features/auth/stores/auth'
 import CierreCajaModal from '~/features/cash/components/CierreCajaModal.vue'
-import { useCashSession } from '~/features/cash/composables/useCashSession'
+import MovimientoModal from '~/features/cash/components/MovimientoModal.vue'
+import { useCashSessionStore } from '~/features/cash/stores/cashSession'
+import { useTicketPrinter } from '~/features/tickets/composables/useTicketPrinter'
 import { ApiError, useApi } from '~/shared/composables/useApi'
 import { formatearCentavos } from '~/shared/utils/dinero'
 
-definePageMeta({ middleware: 'auth', layout: false })
+definePageMeta({ middleware: 'auth' })
 
-const auth = useAuthStore()
 const api = useApi()
-const { turno, turnoId, hayTurnoAbierto, cargando, cargar, abrir } = useCashSession()
+const toast = useToast()
+const caja = useCashSessionStore()
 
 const fondo = ref(0)
 const etiqueta = ref<'matutino' | 'vespertino'>('matutino')
 const error = ref<string | null>(null)
 const trabajando = ref(false)
 const mostrarCierre = ref(false)
+const mostrarMovimiento = ref(false)
+
+const { imprimir, imprimiendo } = useTicketPrinter()
 
 async function alCerrarTurno() {
   mostrarCierre.value = false
-  await cargar()
+  await caja.cargar()
+
+  toast.add({
+    title: 'Turno cerrado',
+    description: 'El corte quedó registrado.',
+    color: 'success',
+    icon: 'i-lucide-check'
+  })
+}
+
+async function alRegistrarMovimiento() {
+  mostrarMovimiento.value = false
+  await caja.cargar()
+
+  toast.add({
+    title: 'Movimiento registrado',
+    description: 'Ya se refleja en el efectivo esperado.',
+    color: 'success',
+    icon: 'i-lucide-check'
+  })
+}
+
+/** Corte X: vista previa imprimible, sin cerrar nada. */
+async function imprimirCorteParcial() {
+  if (caja.turnoId === null) return
+
+  try {
+    await imprimir('corte', caja.turnoId)
+  } catch {
+    toast.add({
+      title: 'No se pudo abrir el corte',
+      description: 'Es una vista previa: no hay nada que deshacer.',
+      color: 'error',
+      icon: 'i-lucide-printer'
+    })
+  }
+}
+
+function horaDe(iso: string): string {
+  return new Date(iso).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
 }
 
 interface Caja { id: number, name: string }
@@ -27,7 +70,7 @@ const cajas = ref<Caja[]>([])
 const cajaId = ref<number | null>(null)
 
 onMounted(async () => {
-  await cargar()
+  await caja.cargar()
 
   // Hoy hay una sola caja; el selector existe porque el modelo ya soporta
   // varias y agregar una segunda no debe requerir tocar esta pantalla.
@@ -50,7 +93,15 @@ async function abrirCaja() {
   error.value = null
 
   try {
-    await abrir(cajaId.value, fondo.value, etiqueta.value)
+    await caja.abrir(cajaId.value, fondo.value, etiqueta.value)
+
+    toast.add({
+      title: 'Caja abierta',
+      description: `Fondo de ${formatearCentavos(fondo.value)}.`,
+      color: 'success',
+      icon: 'i-lucide-check'
+    })
+
     await navigateTo('/venta')
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : 'No se pudo abrir la caja.'
@@ -58,71 +109,57 @@ async function abrirCaja() {
     trabajando.value = false
   }
 }
+
+const movimientos = computed(() => {
+  const t = caja.turno
+  if (t === null) return []
+
+  return [
+    ...t.movimientos.entradas.map(m => ({ ...m, entra: true })),
+    ...t.movimientos.salidas.map(m => ({ ...m, entra: false }))
+  ]
+})
 </script>
 
 <template>
-  <div class="min-h-screen bg-beige-50 dark:bg-beige-950">
-    <header class="border-b border-beige-200 dark:border-beige-800 bg-white dark:bg-beige-900">
-      <div class="px-4 h-14 flex items-center justify-between">
-        <NuxtLink
-          to="/"
-          class="font-semibold text-cafe-800 dark:text-beige-100"
-        >
-          Cafetit
-        </NuxtLink>
-        <span class="text-sm text-beige-600">{{ auth.user?.name }}</span>
-      </div>
-    </header>
+  <div class="flex justify-center">
+    <div class="w-full max-w-lg space-y-4">
+      <EsqueletoLista
+        v-if="caja.cargando && !caja.consultado"
+        :filas="2"
+        alto="h-32"
+      />
 
-    <main class="p-6 flex justify-center">
-      <div class="w-full max-w-lg space-y-4">
-        <p
-          v-if="cargando"
-          class="text-sm text-beige-600"
-        >
-          Consultando el estado de la caja...
-        </p>
+      <!-- Turno abierto: resumen en vivo (corte X) -->
+      <template v-else-if="caja.hayTurnoAbierto && caja.turno">
+        <PaginaTitulo
+          :titulo="`Turno #${caja.turno.turno.folio}`"
+          :descripcion="`${caja.turno.turno.etiqueta} · ${caja.turno.turno.cajero}`"
+        />
 
-        <!-- Turno abierto: resumen en vivo (corte X) -->
-        <UCard v-else-if="hayTurnoAbierto && turno">
-          <template #header>
-            <div class="flex items-baseline justify-between">
-              <h2 class="font-semibold">
-                Turno #{{ turno.turno.folio }}
-              </h2>
-              <span class="text-sm text-beige-600">{{ turno.turno.etiqueta }}</span>
-            </div>
-          </template>
-
+        <UCard>
           <dl class="space-y-2 text-sm">
-            <div class="flex justify-between">
-              <dt class="text-beige-600">
-                Cajero
-              </dt>
-              <dd>{{ turno.turno.cajero }}</dd>
-            </div>
             <div class="flex justify-between">
               <dt class="text-beige-600">
                 Fondo de caja
               </dt>
-              <dd class="tabular-nums">
-                {{ turno.dinero_en_caja.fondo.formatted }}
-              </dd>
+              <dd><MontoDinero :valor="caja.turno.dinero_en_caja.fondo" /></dd>
             </div>
             <div class="flex justify-between">
               <dt class="text-beige-600">
                 Ventas en efectivo
               </dt>
-              <dd class="tabular-nums">
-                {{ turno.dinero_en_caja.ventas_en_efectivo.formatted }}
-              </dd>
+              <dd><MontoDinero :valor="caja.turno.dinero_en_caja.ventas_en_efectivo" /></dd>
             </div>
-            <div class="flex justify-between border-t border-beige-200 dark:border-beige-800 pt-2">
+            <div class="flex justify-between items-baseline border-t border-beige-200 dark:border-beige-800 pt-2">
               <dt class="font-medium">
                 Efectivo esperado
               </dt>
-              <dd class="text-xl font-semibold tabular-nums text-cafe-800 dark:text-beige-100">
-                {{ turno.dinero_en_caja.efectivo_esperado.formatted }}
+              <dd>
+                <MontoDinero
+                  :valor="caja.turno.dinero_en_caja.efectivo_esperado"
+                  tamano="grande"
+                />
               </dd>
             </div>
             <div class="flex justify-between">
@@ -130,43 +167,120 @@ async function abrirCaja() {
                 Ventas del turno
               </dt>
               <dd class="tabular-nums">
-                {{ turno.ventas.cantidad }} · {{ turno.ventas.total.formatted }}
+                {{ caja.turno.ventas.cantidad }} ·
+                <MontoDinero :valor="caja.turno.ventas.total" />
               </dd>
             </div>
           </dl>
 
           <template #footer>
-            <div class="flex gap-2">
+            <div class="flex flex-wrap gap-2">
               <UButton
                 to="/venta"
-                block
                 size="lg"
-                class="toque"
+                class="toque flex-1"
+                icon="i-lucide-shopping-cart"
               >
                 Ir a vender
               </UButton>
               <UButton
-                block
+                size="lg"
+                variant="outline"
+                color="neutral"
+                class="toque flex-1"
+                icon="i-lucide-arrow-left-right"
+                @click="mostrarMovimiento = true"
+              >
+                Efectivo
+              </UButton>
+              <UButton
                 size="lg"
                 variant="outline"
                 color="neutral"
                 class="toque"
+                icon="i-lucide-printer"
+                :loading="imprimiendo"
+                @click="imprimirCorteParcial"
+              >
+                Corte X
+              </UButton>
+              <UButton
+                size="lg"
+                variant="outline"
+                color="neutral"
+                class="toque"
+                icon="i-lucide-lock"
                 @click="mostrarCierre = true"
               >
-                Cerrar caja
+                Cerrar
               </UButton>
             </div>
           </template>
         </UCard>
 
-        <!-- Sin turno: abrir -->
-        <UCard v-else>
+        <!--
+          Movimientos del turno.
+
+          Se muestran aquí y no en otra pantalla porque son parte del
+          estado de la caja: quien mira el efectivo esperado necesita ver
+          de dónde salió la diferencia con el fondo.
+        -->
+        <UCard>
           <template #header>
-            <h2 class="font-semibold">
-              Abrir caja
-            </h2>
+            <div class="flex items-baseline justify-between">
+              <h2 class="font-semibold">
+                Movimientos del turno
+              </h2>
+              <span class="text-sm text-beige-600">
+                {{ movimientos.length }} en total
+              </span>
+            </div>
           </template>
 
+          <SinResultados
+            v-if="movimientos.length === 0"
+            icono="i-lucide-arrow-left-right"
+            titulo="Sin entradas ni salidas"
+            descripcion="Los retiros a bóveda, las propinas entregadas y las compras de insumos aparecen aquí."
+          />
+
+          <div
+            v-else
+            class="space-y-1"
+          >
+            <div
+              v-for="(m, i) in movimientos"
+              :key="`${m.entra ? 'in' : 'out'}-${i}`"
+              class="flex items-baseline justify-between gap-3 text-sm py-1"
+            >
+              <span class="min-w-0">
+                <UIcon
+                  :name="m.entra ? 'i-lucide-arrow-down-to-line' : 'i-lucide-arrow-up-from-line'"
+                  class="size-3"
+                  :class="m.entra ? 'text-success-600' : 'text-beige-500'"
+                />
+                {{ m.concepto }}
+                <span class="text-xs text-beige-600">· {{ m.categoria }} · {{ horaDe(m.hora) }}</span>
+              </span>
+
+              <MontoDinero
+                :valor="m.monto"
+                :signo="m.entra ? 'mas' : 'menos'"
+                :class="m.entra ? 'text-success-700 dark:text-success-400' : ''"
+              />
+            </div>
+          </div>
+        </UCard>
+      </template>
+
+      <!-- Sin turno: abrir -->
+      <template v-else>
+        <PaginaTitulo
+          titulo="Abrir caja"
+          descripcion="Sin turno abierto no se puede cobrar."
+        />
+
+        <UCard>
           <form
             class="space-y-4"
             @submit.prevent="abrirCaja"
@@ -182,8 +296,8 @@ async function abrirCaja() {
                   block
                   size="lg"
                   class="toque capitalize"
-                  :variant="etiqueta === t ? 'solid' : 'outline'"
-                  color="neutral"
+                  :variant="etiqueta === t ? 'soft' : 'outline'"
+                  :color="etiqueta === t ? 'primary' : 'neutral'"
                   @click="etiqueta = t"
                 >
                   {{ t }}
@@ -193,20 +307,14 @@ async function abrirCaja() {
 
             <UFormField
               label="Fondo de caja"
-              help="Con cuánto efectivo empieza el turno, en centavos."
+              help="Con cuánto efectivo empieza el turno."
             >
-              <UInput
-                v-model.number="fondo"
-                type="number"
-                min="0"
+              <CampoPesos
+                v-model="fondo"
+                size="xl"
                 class="w-full"
-                :ui="{ base: 'tabular-nums text-right text-lg' }"
               />
             </UFormField>
-
-            <p class="text-right text-sm text-beige-600 tabular-nums">
-              {{ formatearCentavos(fondo) }}
-            </p>
 
             <UAlert
               v-if="error"
@@ -226,14 +334,22 @@ async function abrirCaja() {
             </UButton>
           </form>
         </UCard>
-      </div>
-    </main>
+      </template>
+    </div>
 
     <CierreCajaModal
-      v-if="mostrarCierre && turnoId !== null"
-      :turno-id="turnoId"
+      v-if="mostrarCierre && caja.turnoId !== null"
+      :turno-id="caja.turnoId"
       @cerrado="alCerrarTurno"
       @cancelar="mostrarCierre = false"
+    />
+
+    <MovimientoModal
+      v-if="mostrarMovimiento && caja.turnoId !== null && caja.turno"
+      :turno-id="caja.turnoId"
+      :efectivo-en-caja="caja.turno.dinero_en_caja.efectivo_esperado.cents"
+      @registrado="alRegistrarMovimiento"
+      @cerrar="mostrarMovimiento = false"
     />
   </div>
 </template>

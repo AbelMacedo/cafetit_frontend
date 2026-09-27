@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useTicketPrinter } from '~/features/tickets/composables/useTicketPrinter'
 import { ApiError, useApi } from '~/shared/composables/useApi'
 import type { ApiResource, CorteCaja } from '~/shared/types/api'
 import { formatearCentavos } from '~/shared/utils/dinero'
@@ -31,6 +32,21 @@ const notas = ref('')
 const trabajando = ref(false)
 const error = ref<string | null>(null)
 const resultado = ref<CorteCaja | null>(null)
+
+const { imprimir, imprimiendo } = useTicketPrinter()
+
+/**
+ * El corte impreso es el respaldo en papel del turno, con su espacio para
+ * la firma del cajero. Se ofrece al terminar, que es cuando toca.
+ */
+async function imprimirCorte() {
+  try {
+    await imprimir('corte', props.turnoId)
+  } catch {
+    // El turno ya cerró: la impresión fallida no deshace nada y el corte
+    // se puede reimprimir desde el historial.
+  }
+}
 
 const contado = computed(() =>
   denominaciones.reduce((n, d) => n + d * (conteo.value[d] ?? 0), 0)
@@ -107,12 +123,9 @@ async function cerrar() {
           label="Retiro a bóveda"
           help="Cuánto se saca del cajón. Lo que queda pasa como fondo del siguiente turno."
         >
-          <UInput
-            v-model.number="retiro"
-            type="number"
-            min="0"
+          <CampoPesos
+            v-model="retiro"
             class="w-full"
-            :ui="{ base: 'tabular-nums text-right' }"
           />
         </UFormField>
 
@@ -176,7 +189,10 @@ async function cerrar() {
               {{ resultado.dinero_en_caja.efectivo_esperado.formatted }}
             </dd>
           </div>
-          <div class="flex justify-between">
+          <div
+            v-if="resultado.arqueo"
+            class="flex justify-between"
+          >
             <dt class="font-medium">
               Contado
             </dt>
@@ -186,7 +202,10 @@ async function cerrar() {
           </div>
         </dl>
 
+        <!-- `arqueo` sólo existe una vez cerrado el turno; mientras está
+             abierto es nulo, y el corte X no lleva diferencia. -->
         <div
+          v-if="resultado.arqueo"
           class="rounded-lg p-4 text-center"
           :class="resultado.arqueo.diferencia.cents === 0
             ? 'bg-success-50 dark:bg-success-950'
@@ -235,15 +254,31 @@ async function cerrar() {
         </UButton>
       </div>
 
-      <UButton
+      <div
         v-else
-        block
-        size="lg"
-        class="toque"
-        @click="emit('cerrado')"
+        class="flex w-full gap-2"
       >
-        Listo
-      </UButton>
+        <UButton
+          block
+          size="lg"
+          variant="outline"
+          color="neutral"
+          class="toque"
+          icon="i-lucide-printer"
+          :loading="imprimiendo"
+          @click="imprimirCorte"
+        >
+          Imprimir corte
+        </UButton>
+        <UButton
+          block
+          size="lg"
+          class="toque"
+          @click="emit('cerrado')"
+        >
+          Listo
+        </UButton>
+      </div>
     </template>
   </UModal>
 </template>

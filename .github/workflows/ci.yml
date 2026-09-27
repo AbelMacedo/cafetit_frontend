@@ -1,34 +1,41 @@
-name: ci
+name: CI
 
-on: push
+on:
+  push:
+    branches: [main]
+  pull_request:
 
 jobs:
-  ci:
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        node: [22]
+  calidad:
+    name: Lint y build
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Install node
-        uses: actions/setup-node@v7
+      - name: Preparar Node 24
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
-          cache: pnpm
+          node-version: '24'
+          cache: npm
 
-      - name: Install dependencies
-        run: pnpm install
+      - name: Instalar dependencias
+        run: npm ci
 
       - name: Lint
-        run: pnpm run lint
+        run: npm run lint
 
+      # Venía en la plantilla de Nuxt y vale la pena conservarlo: atrapa
+      # errores que ESLint no ve. Ya encontró uno real — acceder a
+      # `arqueo.diferencia` sin comprobar que el turno esté cerrado.
       - name: Typecheck
-        run: pnpm run typecheck
+        run: npm run typecheck
+
+      # Aritmética del carrito y cliente de API. Corren en Node, sin DOM
+      # ni runtime de Nuxt: la suite entera tarda menos de medio segundo,
+      # que es lo que hace que se siga corriendo.
+      - name: Pruebas
+        run: npm run test
+
+      - name: Build
+        run: npm run build

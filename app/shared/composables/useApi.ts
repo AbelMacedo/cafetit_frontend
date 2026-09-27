@@ -90,7 +90,9 @@ export function useApi() {
         baseURL: base,
         method,
         headers,
-        body: opciones.body as Record<string, unknown> | undefined,
+        // `FormData` pasa tal cual: ofetch lo reconoce y deja que el
+        // navegador ponga el Content-Type con su separador.
+        body: opciones.body as Record<string, unknown> | FormData | undefined,
         query: opciones.query,
 
         // Manda la cookie de sesión en peticiones a otro origen.
@@ -124,6 +126,19 @@ export function useApi() {
       request<T>(ruta, { method: 'GET', query }),
 
     post: <T>(ruta: string, body?: unknown) => request<T>(ruta, { method: 'POST', body }),
+
+    /**
+     * Subida de archivos.
+     *
+     * Existe aparte de `post` porque un `FormData` no se serializa como
+     * JSON: el navegador tiene que poner él mismo el `Content-Type` con
+     * el separador del multipart, y para eso hay que no tocarlo. Tenerlo
+     * como método propio evita que alguien le pase un FormData a `post`
+     * y se pregunte por qué el servidor recibe un objeto vacío.
+     */
+    subir: <T>(ruta: string, datos: FormData) =>
+      request<T>(ruta, { method: 'POST', body: datos }),
+
     put: <T>(ruta: string, body?: unknown) => request<T>(ruta, { method: 'PUT', body }),
     patch: <T>(ruta: string, body?: unknown) => request<T>(ruta, { method: 'PATCH', body }),
     del: <T>(ruta: string) => request<T>(ruta, { method: 'DELETE' })

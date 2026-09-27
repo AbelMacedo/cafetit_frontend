@@ -14,6 +14,8 @@ useSeoMeta({ title: 'Cafetit · Punto de venta' })
 
 <template>
   <UApp>
-    <NuxtPage />
+    <NuxtLayout>
+      <NuxtPage />
+    </NuxtLayout>
   </UApp>
 </template>

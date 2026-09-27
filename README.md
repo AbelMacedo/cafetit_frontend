@@ -1,64 +1,86 @@
-# Nuxt Starter Template
+# Cafetit — POS
 
-[![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)
+Punto de venta de la cafetería. SPA en Nuxt 4, sin renderizado en
+servidor: vive detrás de un login, no hay SEO que ganar y el SSR sólo
+agregaría latencia en cada pantalla.
 
-Use this template to get started with [Nuxt UI](https://ui.nuxt.com) quickly.
+**La API es la fuente de verdad del dinero.** Los totales que calcula esta
+aplicación son para que el cajero vea la cifra mientras captura; el que se
+cobra lo calcula el servidor. Por eso la aritmética del carrito replica el
+orden del backend al centavo, y por eso tiene pruebas.
 
-- [Live demo](https://starter-template.nuxt.dev/)
-- [Documentation](https://ui.nuxt.com/docs/getting-started/installation/nuxt)
-
-<a href="https://starter-template.nuxt.dev/" target="_blank">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png">
-    <img alt="Nuxt Starter Template" src="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png" width="830" height="466">
-  </picture>
-</a>
-
-> The starter template for Vue is on https://github.com/nuxt-ui-templates/starter-vue.
-
-## Quick Start
-
-```bash [Terminal]
-npm create nuxt@latest -- -t ui
-```
-
-## Deploy your own
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-name=starter&repository-url=https%3A%2F%2Fgithub.com%2Fnuxt-ui-templates%2Fstarter&demo-image=https%3A%2F%2Fui.nuxt.com%2Fassets%2Ftemplates%2Fnuxt%2Fstarter-dark.png&demo-url=https%3A%2F%2Fstarter-template.nuxt.dev%2F&demo-title=Nuxt%20Starter%20Template&demo-description=A%20minimal%20template%20to%20get%20started%20with%20Nuxt%20UI.)
-
-## Setup
-
-Make sure to install the dependencies:
+## Arranque
 
 ```bash
-pnpm install
+npm install
+cp .env.example .env    # NUXT_PUBLIC_API_BASE apunta a la API
+npm run dev
 ```
 
-## Development Server
+Necesita la API corriendo. Ver el repositorio `cafetit_backend`, que además
+guarda la documentación del sistema completo: alcance, arquitectura, diseño
+y despliegue.
 
-Start the development server on `http://localhost:3000`:
+## Comandos
 
 ```bash
-pnpm dev
+npm run dev          # servidor de desarrollo en :3000
+npm run test         # pruebas (Vitest)
+npm run test:watch   # en modo continuo
+npm run lint         # ESLint
+npm run typecheck    # vue-tsc
+npm run build        # producción
 ```
 
-## Production
+## Estructura
 
-Build the application for production:
+Por **features**, no por tipo de archivo: lo que cambia junto vive junto.
 
-```bash
-pnpm build
+```
+app/
+  layouts/default.vue     armazón: navegación, estado del turno, campanita
+  pages/                  una por pantalla, sin encabezado propio
+  features/<dominio>/     stores, composables y componentes de ese dominio
+  shared/ui/              primitivas sin dominio (auto-importadas)
+  shared/composables/     cliente de API
+  shared/types/api.ts     la forma de lo que devuelve el servidor
 ```
 
-Locally preview production build:
+**Los composables y componentes de feature se importan explícitamente.**
+Con auto-import, `useCatalog()` aparece en una pantalla sin decir de dónde
+sale, y en una arquitectura por dominios eso esconde justo lo que importa:
+qué dominio usa a cuál. Lo de `shared/ui/` sí se auto-importa, porque son
+piezas sin dominio.
 
-```bash
-pnpm preview
-```
+## Pruebas
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+29 pruebas sobre la aritmética del carrito, el cliente de API y el formato
+del dinero. Corren en Node, sin DOM ni runtime de Nuxt: la suite tarda
+menos de medio segundo, que es lo que hace que se siga corriendo.
 
-## Renovate integration
+Lo que se prueba del carrito no es «suma bien», sino que replique el orden
+del backend —descuento de línea primero, descuento de venta después— y el
+redondeo mitad-hacia-arriba con enteros. Si divergieran, el cajero vería un
+número y cobraría otro.
 
-Install [Renovate GitHub app](https://github.com/apps/renovate/installations/select_target) on your repository and you are good to go.
+Los auto-imports de Nuxt se suplen en `tests/setup.ts`; ahí está explicado
+por qué, y cuál es la contrapartida.
+
+## Compuertas de calidad
+
+Corren en cada push ([.github/workflows/ci.yml](.github/workflows/ci.yml)):
+ESLint, `vue-tsc`, Vitest y build. Si alguna falla, no se mezcla.
+
+## Sesión
+
+Autenticación por **cookie HttpOnly** (Sanctum en modo SPA), no por token
+en `localStorage`. Un token en `localStorage` lo lee cualquier script
+inyectado en la página; una cookie `HttpOnly`, no. En un sistema que maneja
+el dinero del negocio esa diferencia no es teórica.
+
+Todo el tráfico pasa por `shared/composables/useApi`: un solo lugar donde
+viven la cookie CSRF, el manejo de errores y la sesión caducada.
+
+## Despliegue
+
+Cloudflare Pages. Ver `docs/DEPLOY.md` en `cafetit_backend`.
