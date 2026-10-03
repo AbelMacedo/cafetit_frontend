@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/features/auth/stores/auth'
 import { useCashSessionStore } from '~/features/cash/stores/cashSession'
+import CambiarCajeroModal from '~/features/auth/components/CambiarCajeroModal.vue'
 import CampanaAvisos from '~/features/notifications/components/CampanaAvisos.vue'
 
 /**
@@ -31,6 +32,7 @@ onMounted(() => {
 })
 
 const cajonAbierto = ref(false)
+const cambiandoCajero = ref(false)
 
 const secciones = [
   {
@@ -52,8 +54,10 @@ const secciones = [
     titulo: 'Configuración',
     items: [
       { ruta: '/', etiqueta: 'Catálogo', icono: 'i-lucide-coffee' },
-      { ruta: '/productos', etiqueta: 'Productos', icono: 'i-lucide-tags' },
-      { ruta: '/empleados', etiqueta: 'Empleados', icono: 'i-lucide-users' }
+      { ruta: '/productos', etiqueta: 'Productos', icono: 'i-lucide-package-2' },
+      { ruta: '/categorias', etiqueta: 'Categorías', icono: 'i-lucide-tags' },
+      { ruta: '/empleados', etiqueta: 'Empleados', icono: 'i-lucide-users' },
+      { ruta: '/bitacora', etiqueta: 'Bitácora', icono: 'i-lucide-scroll-text' }
     ]
   }
 ]
@@ -61,7 +65,7 @@ const secciones = [
 const planos = secciones.flatMap(s => s.items)
 
 const tituloActual = computed(() =>
-  planos.find(i => i.ruta === ruta.path)?.etiqueta ?? 'Cafetit'
+  planos.find(i => i.ruta === ruta.path)?.etiqueta ?? 'La Cafetit'
 )
 
 /** En venta el ancho vale más que el rótulo del menú. */
@@ -92,7 +96,7 @@ watch(() => ruta.path, () => {
 </script>
 
 <template>
-  <div class="h-dvh flex bg-beige-50 overflow-hidden">
+  <div class="h-dvh flex bg-beige-100 overflow-hidden">
     <!-- Fondo oscuro cuando el cajón está abierto en móvil -->
     <div
       v-if="cajonAbierto"
@@ -101,31 +105,31 @@ watch(() => ruta.path, () => {
     />
 
     <aside
-      class="fixed md:static top-0 left-0 h-dvh z-40 bg-cafe-900 text-beige-100
-             flex flex-col shrink-0 transition-all duration-200"
+      class="fixed md:static top-0 left-0 h-dvh z-40 bg-beige-50 text-cafe-800
+             border-r border-beige-200 flex flex-col shrink-0 transition-all duration-200"
       :class="[
-        compacta ? 'w-60 md:w-[4.5rem]' : 'w-60',
+        compacta ? 'w-60 md:w-[4.5rem] xl:w-60' : 'w-60',
         cajonAbierto ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       ]"
     >
       <!-- Marca -->
-      <div class="h-16 flex items-center gap-3 px-4 border-b border-cafe-800/60 shrink-0">
+      <div class="h-16 flex items-center gap-3 px-4 shrink-0">
         <span
           class="size-10 rounded-xl bg-naranja-500 text-white flex items-center justify-center
                  font-bold text-lg shrink-0"
         >C</span>
 
         <span
-          class="text-xl font-bold text-white truncate"
-          :class="compacta ? 'md:hidden' : ''"
-        >Cafetit</span>
+          class="text-xl font-bold text-cafe-900 truncate"
+          :class="compacta ? 'md:hidden xl:block' : ''"
+        >La Cafetit</span>
 
         <UButton
           size="sm"
           variant="ghost"
           color="neutral"
           icon="i-lucide-x"
-          class="md:hidden ml-auto text-beige-300"
+          class="md:hidden ml-auto"
           aria-label="Cerrar menú"
           @click="cajonAbierto = false"
         />
@@ -138,8 +142,8 @@ watch(() => ruta.path, () => {
           class="mb-4 last:mb-0"
         >
           <p
-            class="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-cafe-400"
-            :class="compacta ? 'md:hidden' : ''"
+            class="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-beige-500"
+            :class="compacta ? 'md:hidden xl:block' : ''"
           >
             {{ s.titulo }}
           </p>
@@ -154,15 +158,15 @@ watch(() => ruta.path, () => {
               :class="[
                 esActiva(i.ruta)
                   ? 'bg-naranja-500 text-white shadow-sm'
-                  : 'text-beige-300 hover:bg-cafe-800 hover:text-white',
-                compacta ? 'md:justify-center md:px-0' : ''
+                  : 'text-cafe-700 hover:bg-beige-200/70 hover:text-cafe-900',
+                compacta ? 'md:justify-center md:px-0 xl:justify-start xl:px-3' : ''
               ]"
             >
               <UIcon
                 :name="i.icono"
                 class="size-5 shrink-0"
               />
-              <span :class="compacta ? 'md:hidden' : ''">{{ i.etiqueta }}</span>
+              <span :class="compacta ? 'md:hidden xl:block' : ''">{{ i.etiqueta }}</span>
             </NuxtLink>
           </div>
         </div>
@@ -179,8 +183,8 @@ watch(() => ruta.path, () => {
         to="/caja"
         class="mx-2.5 mb-2 rounded-xl px-3 py-2.5 flex items-center gap-2.5 transition"
         :class="caja.hayTurnoAbierto
-          ? 'bg-cafe-800/70 hover:bg-cafe-800'
-          : 'bg-naranja-950/60 hover:bg-naranja-950'"
+          ? 'bg-beige-200/60 hover:bg-beige-200'
+          : 'bg-naranja-100 hover:bg-naranja-200'"
       >
         <span
           class="size-2 rounded-full shrink-0"
@@ -189,47 +193,74 @@ watch(() => ruta.path, () => {
 
         <span
           class="min-w-0 flex-1"
-          :class="compacta ? 'md:hidden' : ''"
+          :class="compacta ? 'md:hidden xl:block' : ''"
         >
-          <span class="block text-xs text-beige-400 leading-none">
+          <span class="block text-xs text-beige-600 leading-none">
             {{ caja.consultado ? (caja.hayTurnoAbierto ? 'Caja abierta' : 'Caja cerrada') : '···' }}
           </span>
           <span
             v-if="caja.turno"
-            class="block text-sm text-white truncate mt-0.5 capitalize"
+            class="block text-sm text-cafe-900 font-medium truncate mt-0.5 capitalize"
           >
             Turno #{{ caja.turno.turno.folio }} · {{ caja.turno.turno.etiqueta }}
           </span>
         </span>
       </NuxtLink>
 
-      <!-- Usuario -->
-      <div class="border-t border-cafe-800/60 p-2.5 shrink-0">
+      <!--
+        Usuario.
+
+        Con la barra encogida se apila en vertical en lugar de esconder
+        los botones. Escondiéndolos, en una tableta de 1024 px —el
+        formato más probable del mostrador— la pantalla de venta se
+        quedaba sin forma de cambiar de cajero ni de salir. Son iconos:
+        caben de sobra en 4.5 rem, y lo único que estorbaba era el
+        nombre.
+      -->
+      <div class="border-t border-beige-200 p-2.5 shrink-0">
         <div
           class="flex items-center gap-3 px-1"
-          :class="compacta ? 'md:justify-center md:px-0' : ''"
+          :class="compacta ? 'md:flex-col md:gap-2 md:px-0 xl:flex-row xl:gap-3 xl:px-3' : ''"
         >
           <span
-            class="size-9 rounded-full bg-cafe-600 text-white flex items-center justify-center
+            class="size-9 rounded-full bg-cafe-500 text-white flex items-center justify-center
                    font-semibold text-sm shrink-0"
           >{{ iniciales }}</span>
 
           <span
             class="min-w-0 flex-1"
-            :class="compacta ? 'md:hidden' : ''"
+            :class="compacta ? 'md:hidden xl:block' : ''"
           >
-            <span class="block text-sm font-medium text-white truncate">{{ auth.user?.name }}</span>
-            <span class="block text-xs text-cafe-400 truncate">{{ auth.sucursal?.name }}</span>
+            <span class="block text-sm font-medium text-cafe-900 truncate">{{ auth.user?.name }}</span>
+            <span class="block text-xs text-beige-500 truncate">{{ auth.sucursal?.name }}</span>
           </span>
+
+          <!--
+            Cambiar de cajero está junto a Salir y antes que él: es lo
+            que se hace varias veces al día, mientras que cerrar sesión
+            se hace al terminar la jornada. Si sólo estuviera «Salir»,
+            el relevo pasaría por cerrar y volver a entrar con
+            contraseña, y eso acaba en una cuenta compartida.
+          -->
+          <UButton
+            size="sm"
+            variant="ghost"
+            color="neutral"
+            icon="i-lucide-user-round-cog"
+            class="shrink-0"
+            aria-label="Cambiar de cajero"
+            title="Cambiar de cajero"
+            @click="cambiandoCajero = true"
+          />
 
           <UButton
             size="sm"
             variant="ghost"
             color="neutral"
             icon="i-lucide-log-out"
-            class="text-beige-300 hover:text-white hover:bg-cafe-800 shrink-0"
-            :class="compacta ? 'md:hidden' : ''"
+            class="shrink-0"
             aria-label="Salir"
+            title="Salir"
             @click="auth.logout()"
           />
         </div>
@@ -305,5 +336,10 @@ watch(() => ruta.path, () => {
         </div>
       </main>
     </div>
+
+    <CambiarCajeroModal
+      v-if="cambiandoCajero"
+      @cerrar="cambiandoCajero = false"
+    />
   </div>
 </template>

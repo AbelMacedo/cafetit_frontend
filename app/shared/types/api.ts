@@ -364,3 +364,36 @@ export interface ValidationError {
   message: string
   errors: Record<string, string[]>
 }
+
+/*
+| Bitácora
+|
+| Es el único contrapeso del sistema: no hay roles, así que cualquiera
+| puede cancelar una venta o mover un precio. Lo que queda es el registro.
+*/
+
+export interface RegistroBitacora {
+  id: number
+  /** Código estable, el que se manda al filtrar. */
+  accion: string
+  /** Rótulo ya traducido por el servidor. */
+  accion_texto: string
+  grupo: string
+  /** Si es de las que se revisan cuando algo no cuadra. */
+  delicada: boolean
+  descripcion: string | null
+  ocurrio_en: string
+  usuario: string | null
+  usuario_id: number | null
+  /** Nulo cuando el hecho vino de un comando y no de un navegador. */
+  ip: string | null
+  antes: Record<string, unknown> | null
+  despues: Record<string, unknown> | null
+}
+
+export interface AccionBitacora {
+  valor: string
+  texto: string
+  grupo: string
+  delicada: boolean
+}

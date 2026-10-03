@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import CampoFoto from '~/features/catalog/components/CampoFoto.vue'
-import { formatearCentavos } from '~/shared/utils/dinero'
 import type {
   AtributoProducto, Category, Product, ProductoAGuardar, VarianteAGuardar
 } from '~/shared/types/api'
@@ -298,20 +297,12 @@ onMounted(() => {
           <UFormField
             v-if="!tieneVariaciones"
             label="Precio"
-            help="En centavos. 5500 son $55.00"
           >
-            <div class="flex items-center gap-3">
-              <UInput
-                v-model.number="precioUnico"
-                type="number"
-                min="0"
-                class="w-48"
-                :ui="{ base: 'tabular-nums text-right' }"
-              />
-              <span class="text-lg font-semibold tabular-nums text-cafe-800 dark:text-beige-100">
-                {{ formatearCentavos(precioUnico) }}
-              </span>
-            </div>
+            <CampoPesos
+              v-model="precioUnico"
+              size="lg"
+              class="w-48"
+            />
           </UFormField>
 
           <!-- Con variaciones: elegir opciones y poner precio a cada combinación -->
@@ -349,14 +340,10 @@ onMounted(() => {
                 </p>
 
                 <div class="flex items-center gap-2">
-                  <UInput
-                    v-model.number="precioMasivo"
-                    type="number"
-                    min="0"
-                    placeholder="Precio"
+                  <CampoPesos
+                    v-model="precioMasivo"
                     size="sm"
                     class="w-28"
-                    :ui="{ base: 'tabular-nums text-right' }"
                   />
                   <UButton
                     size="sm"
@@ -375,17 +362,12 @@ onMounted(() => {
                 class="flex items-center gap-3"
               >
                 <span class="flex-1 text-sm">{{ c.etiqueta }}</span>
-                <UInput
-                  v-model.number="precios[c.clave]"
-                  type="number"
-                  min="0"
+                <CampoPesos
+                  :model-value="precios[c.clave] ?? 0"
                   size="sm"
-                  class="w-32"
-                  :ui="{ base: 'tabular-nums text-right' }"
+                  class="w-36"
+                  @update:model-value="v => precios[c.clave] = v"
                 />
-                <span class="w-20 text-right text-sm tabular-nums text-beige-600">
-                  {{ formatearCentavos(precios[c.clave] ?? 0) }}
-                </span>
               </div>
             </div>
 

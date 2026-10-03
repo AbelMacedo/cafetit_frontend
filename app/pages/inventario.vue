@@ -26,7 +26,7 @@ const entrada = reactive({
   variant_id: undefined as number | undefined,
   quantity: 1,
   horas_de_vida: 12,
-  unit_cost_pesos: 0,
+  unit_cost_cents: 0,
   lot_code: '',
   supplier: ''
 })
@@ -57,7 +57,7 @@ async function guardarEntrada() {
       variant_id: entrada.variant_id,
       quantity: entrada.quantity,
       expires_at: entrada.horas_de_vida > 0 ? caducaEn.value.toISOString() : undefined,
-      unit_cost_cents: Math.round(entrada.unit_cost_pesos * 100),
+      unit_cost_cents: entrada.unit_cost_cents,
       lot_code: entrada.lot_code || undefined,
       supplier: entrada.supplier || undefined
     })
@@ -72,7 +72,7 @@ async function guardarEntrada() {
     mostrarEntrada.value = false
     Object.assign(entrada, {
       variant_id: undefined, quantity: 1, horas_de_vida: 12,
-      unit_cost_pesos: 0, lot_code: '', supplier: ''
+      unit_cost_cents: 0, lot_code: '', supplier: ''
     })
   } catch (e) {
     errorEntrada.value = e instanceof ApiError ? e.message : 'No se pudo registrar la entrada.'
@@ -387,13 +387,9 @@ const ventanaFiltro = computed({
             </UFormField>
 
             <UFormField label="Costo por pieza">
-              <UInput
-                v-model.number="entrada.unit_cost_pesos"
-                type="number"
-                min="0"
-                step="0.5"
+              <CampoPesos
+                v-model="entrada.unit_cost_cents"
                 class="w-full"
-                :ui="{ base: 'tabular-nums text-right' }"
               />
             </UFormField>
           </div>
@@ -449,7 +445,7 @@ const ventanaFiltro = computed({
 
           <p class="text-right text-sm text-beige-600 tabular-nums">
             Valor del lote:
-            {{ formatearCentavos(Math.round(entrada.unit_cost_pesos * 100) * entrada.quantity) }}
+            {{ formatearCentavos(entrada.unit_cost_cents * entrada.quantity) }}
           </p>
 
           <UAlert

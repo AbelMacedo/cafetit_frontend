@@ -349,13 +349,14 @@ function siguienteVenta() {
         <div
           v-else
           class="flex-1 overflow-y-auto grid gap-3 content-start auto-rows-min pt-2 -mt-2 px-1 -mx-1"
-          style="grid-template-columns: repeat(auto-fill, minmax(210px, 1fr))"
+          style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr))"
         >
           <TarjetaProducto
             v-for="p in productosVisibles"
             :key="p.id"
             :producto="p"
-            @click="tocarProducto(p)"
+            @agregar="v => carrito.agregar(p, v)"
+            @elegir="eligiendo = p"
           />
         </div>
 
@@ -375,7 +376,17 @@ function siguienteVenta() {
 
       <!-- Carrito -->
       <aside class="w-96 shrink-0 border-l border-beige-200 dark:border-beige-800 bg-white dark:bg-beige-900 flex flex-col">
-        <div class="p-4 border-b border-beige-200 dark:border-beige-800">
+        <div class="p-4 border-b border-beige-200 dark:border-beige-800 space-y-3">
+          <div class="flex items-baseline justify-between gap-2">
+            <h2 class="font-semibold text-cafe-900 dark:text-beige-100">
+              Resumen
+            </h2>
+            <span
+              v-if="!carrito.vacio"
+              class="text-xs text-beige-600"
+            >{{ carrito.piezas }} {{ carrito.piezas === 1 ? 'pieza' : 'piezas' }}</span>
+          </div>
+
           <UInput
             v-model="carrito.cliente"
             placeholder="Nombre del cliente (opcional)"
@@ -521,6 +532,26 @@ function siguienteVenta() {
             />
           </div>
 
+          <!-- El redondeo, cuando está puesto, se ve antes del total -->
+          <div
+            v-if="carrito.redondeo !== 0"
+            class="flex items-baseline justify-between text-sm"
+          >
+            <span class="text-beige-600 flex items-center gap-1">
+              <UIcon
+                name="i-lucide-coins"
+                class="size-3.5"
+              />
+              Redondeo
+            </span>
+            <MontoDinero
+              :valor="Math.abs(carrito.redondeo)"
+              :signo="carrito.redondeo > 0 ? 'mas' : 'menos'"
+              tamano="chico"
+              class="text-beige-600"
+            />
+          </div>
+
           <div class="flex items-baseline justify-between">
             <span class="text-lg font-medium">Total</span>
             <MontoDinero
@@ -603,6 +634,7 @@ function siguienteVenta() {
 
     <CobroModal
       v-if="mostrarCobro"
+      v-model:redondear="carrito.redondear"
       :total="carrito.total"
       :cobrando="cobrando"
       :error="errorCobro"

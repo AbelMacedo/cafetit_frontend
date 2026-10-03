@@ -14,6 +14,25 @@ const props = defineProps<{
   error: string | null
 }>()
 
+/**
+ * Redondear al peso.
+ *
+ * Vive en el carrito, no aquí, porque cambia el total que se cobra y ese
+ * número lo tiene el carrito. Este diálogo sólo lo enciende y lo apaga.
+ */
+const redondear = defineModel<boolean>('redondear', { required: true })
+
+/** Lo que quedaría si se redondea; sirve para rotular el botón. */
+const conRedondeo = computed(() => {
+  const centavos = props.total % 100
+  if (centavos === 0) return props.total
+
+  return props.total + (centavos >= 50 ? 100 - centavos : -centavos)
+})
+
+/** Un total en pesos exactos no se puede redondear: no hay qué quitar. */
+const sePuedeRedondear = computed(() => props.total % 100 !== 0 || redondear.value)
+
 const emit = defineEmits<{
   cobrar: [pagos: Array<Record<string, unknown>>]
   cerrar: []
@@ -46,6 +65,25 @@ function pagarTodo(metodo: Metodo) {
   montos.value[metodo] = props.total
   if (metodo === 'cash') recibido.value = props.total
 }
+
+/**
+ * Si cambia el total, el monto capturado lo sigue.
+ *
+ * Redondear cambia el total con el diálogo ya abierto. Sin esto, el monto
+ * se quedaba en la cifra anterior y el cobro se bloqueaba con un «sobran
+ * $0.25» que el cajero no provocó y no entiende.
+ *
+ * **Sólo se ajusta lo que el cajero no tocó.** Si repartió el pago entre
+ * dos métodos, esos números son suyos: pisarlos sería peor que dejar el
+ * aviso, porque cobraría algo distinto de lo que capturó.
+ */
+watch(() => props.total, (nuevo, anterior) => {
+  for (const metodo of ['cash', 'card', 'transfer'] as Metodo[]) {
+    if (montos.value[metodo] === anterior) montos.value[metodo] = nuevo
+  }
+
+  if (recibido.value === anterior) recibido.value = nuevo
+})
 
 /** Billetes con los que la gente paga de verdad. */
 const sugerencias = computed(() => {
@@ -98,6 +136,27 @@ onMounted(() => pagarTodo('cash'))
             {{ formatearCentavos(total) }}
           </p>
         </div>
+
+        <!--
+          Redondeo al peso.
+
+          Dice a cuánto quedaría antes de aplicarlo: «Redondear a $47.00»
+          se entiende de un vistazo, «Redondear» obliga a calcular.
+        -->
+        <UButton
+          v-if="sePuedeRedondear"
+          block
+          size="lg"
+          class="toque"
+          :variant="redondear ? 'soft' : 'outline'"
+          :color="redondear ? 'primary' : 'neutral'"
+          :icon="redondear ? 'i-lucide-check' : 'i-lucide-coins'"
+          @click="redondear = !redondear"
+        >
+          {{ redondear
+            ? `Redondeado a ${formatearCentavos(total)}`
+            : `Redondear a ${formatearCentavos(conRedondeo)}` }}
+        </UButton>
 
         <div class="grid grid-cols-3 gap-2">
           <UButton

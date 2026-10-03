@@ -35,6 +35,15 @@ export const useCartStore = defineStore('cart', () => {
   const descuentoMotivo = ref('')
 
   /**
+   * Redondear el total al peso más cercano.
+   *
+   * Es una bandera, no una cantidad: cuánto se redondea lo decide el
+   * servidor. Aquí se replica el cálculo sólo para que el cajero vea la
+   * cifra mientras cobra — como todo lo demás en este store.
+   */
+  const redondear = ref(false)
+
+  /**
    * Llave de idempotencia del carrito.
    *
    * Se genera al abrir el carrito, NO al cobrar: si se generara al cobrar,
@@ -75,7 +84,25 @@ export const useCartStore = defineStore('cart', () => {
     resolverDescuento(subtotal.value, descuentoTipo.value, descuentoValor.value)
   )
 
-  const total = computed(() => subtotal.value - descuentoVenta.value)
+  const totalConDescuento = computed(() => subtotal.value - descuentoVenta.value)
+
+  /**
+   * Al peso MÁS cercano, no siempre hacia arriba.
+   *
+   * Redondear siempre a favor del negocio sería un aumento disfrazado, y
+   * sobre cien ventas al día se nota. Mismo criterio que el backend: 50
+   * centavos suben.
+   */
+  const redondeo = computed(() => {
+    if (!redondear.value) return 0
+
+    const centavos = totalConDescuento.value % 100
+    if (centavos === 0) return 0
+
+    return centavos >= 50 ? 100 - centavos : -centavos
+  })
+
+  const total = computed(() => totalConDescuento.value + redondeo.value)
 
   function agregar(producto: Product, variante: ProductVariant) {
     // Misma variante sin descuento propio: sube la cantidad en lugar de
@@ -127,6 +154,7 @@ export const useCartStore = defineStore('cart', () => {
     descuentoTipo.value = 'none'
     descuentoValor.value = 0
     descuentoMotivo.value = ''
+    redondear.value = false
     idempotencyKey.value = crypto.randomUUID()
   }
 
@@ -144,6 +172,7 @@ export const useCartStore = defineStore('cart', () => {
       discount_type: descuentoTipo.value,
       discount_value: descuentoValor.value,
       discount_reason: descuentoMotivo.value || undefined,
+      round_to_peso: redondear.value,
       customer_name: cliente.value || undefined,
       payments: pagos,
       idempotency_key: idempotencyKey.value
@@ -156,6 +185,9 @@ export const useCartStore = defineStore('cart', () => {
     descuentoTipo,
     descuentoValor,
     descuentoMotivo,
+    redondear,
+    redondeo,
+    totalConDescuento,
     idempotencyKey,
     vacio,
     piezas,

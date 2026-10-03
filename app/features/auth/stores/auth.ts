@@ -43,6 +43,24 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
+   * Cambia de cajero con el PIN, sin cerrar la sesión de la terminal.
+   *
+   * La cookie es la misma: el servidor cambia a quién pertenece. Por
+   * eso aquí sólo se refresca el usuario en pantalla — no hay nada que
+   * limpiar ni a dónde navegar, y el turno de caja abierto sigue
+   * abierto.
+   *
+   * Devuelve el nombre de quien entra, para el aviso.
+   */
+  async function cambiarCajero(pin: string): Promise<string> {
+    const respuesta = await api.post<ApiResource<User>>('/pin-unlock', { pin })
+
+    user.value = respuesta.data
+
+    return respuesta.data.name
+  }
+
+  /**
    * Comprueba contra el servidor si la cookie sigue siendo válida.
    *
    * Se llama al arrancar la aplicación. Es la única forma de saberlo:
@@ -61,5 +79,8 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { user, cargando, verificado, autenticado, sucursal, login, logout, recuperarSesion }
+  return {
+    user, cargando, verificado, autenticado, sucursal,
+    login, logout, cambiarCajero, recuperarSesion
+  }
 })

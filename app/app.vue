@@ -9,7 +9,7 @@ useHead({
   htmlAttrs: { lang: 'es' }
 })
 
-useSeoMeta({ title: 'Cafetit · Punto de venta' })
+useSeoMeta({ title: 'La Cafetit · Punto de venta' })
 </script>
 
 <template>

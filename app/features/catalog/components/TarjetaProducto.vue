@@ -1,39 +1,72 @@
 <script setup lang="ts">
-import type { Product } from '~/shared/types/api'
+import type { Product, ProductVariant } from '~/shared/types/api'
 
 /**
  * Producto en la cuadrícula de venta.
  *
- * Es el elemento que más se mira en todo el sistema, así que la jerarquía
- * es la del mostrador: **nombre y precio primero**, la imagen después.
+ * Foto arriba, nombre y precio en la misma línea, presentaciones como
+ * píldoras y el botón de agregar en la propia tarjeta.
  *
- * Antes la tarjeta la encabezaba un recuadro gris de «Foto del producto»
- * que ocupaba la mitad del alto. Como las fotos del negocio todavía no
- * existen, eso era media tarjeta de nada: el cajero leía el nombre en
- * letra chica debajo de un hueco. El marcador sigue existiendo donde sí
- * sirve —el catálogo, que es donde se revisa qué falta— pero aquí estorba.
+ * **Las presentaciones van aquí y no en un diálogo aparte** cuando son
+ * pocas. Elegir «Grande» y luego confirmar eran dos toques y una capa
+ * encima de la pantalla; así es un toque y la elección se ve sin abrir
+ * nada. Con muchas variantes —el Americano tiene cinco— no caben sin
+ * apretar el resto, y ahí sí se abre el selector: una fila de píldoras
+ * ilegible es peor que un diálogo.
  *
- * Sin foto, la tarjeta muestra la inicial sobre un tono cálido. No es
- * decoración: da una silueta distinta a cada producto, y a distancia de
- * brazo se reconoce por forma antes que por lectura.
+ * Sin foto se muestra la inicial sobre un tono cálido. No es el diseño:
+ * es lo que evita que una cuadrícula sin fotos se lea como una lista de
+ * texto, y desaparece en cuanto el producto tiene la suya.
  */
 const props = defineProps<{
   producto: Product
 }>()
 
+const emit = defineEmits<{
+  /** Se eligió una presentación concreta: va directo al carrito. */
+  agregar: [variante: ProductVariant]
+  /** Hay demasiadas presentaciones: que la pantalla abra el selector. */
+  elegir: []
+}>()
+
+/** Más de esto no cabe en la tarjeta sin volverse ilegible. */
+const MAXIMO_EN_TARJETA = 3
+
 const activas = computed(() =>
   (props.producto.variants ?? []).filter(v => v.is_active)
+)
+
+const enTarjeta = computed(() =>
+  activas.value.length > 1 && activas.value.length <= MAXIMO_EN_TARJETA
+)
+
+const unica = computed(() => activas.value.length === 1 ? activas.value[0]! : null)
+
+/** La presentación marcada. Arranca en la de por omisión. */
+const elegida = ref<ProductVariant | null>(null)
+
+const seleccion = computed(() =>
+  elegida.value
+  ?? unica.value
+  ?? activas.value.find(v => v.is_default)
+  ?? activas.value[0]
+  ?? null
 )
 
 /**
  * Qué precio enseñar.
  *
- * Con varias presentaciones se muestra «desde», no el de la variante por
- * omisión: prometer $55 y cobrar $70 porque el cliente la pidió grande es
- * la clase de sorpresa que se discute en el mostrador.
+ * Si hay presentación marcada, la suya: el precio tiene que corresponder
+ * a lo que se va a agregar. Si no, «desde» el menor — prometer $55 y
+ * cobrar $70 porque el cliente la pidió grande es la clase de sorpresa
+ * que se discute en el mostrador.
  */
 const precio = computed(() => {
   if (activas.value.length === 0) return null
+
+  if (enTarjeta.value || unica.value !== null) {
+    return { texto: seleccion.value?.price.formatted ?? '—', desde: false }
+  }
 
   const menor = activas.value.reduce(
     (min, v) => (v.price.cents < min.price.cents ? v : min),
@@ -55,11 +88,11 @@ const inicial = computed(() => props.producto.name.trim().charAt(0).toUpperCase(
  */
 const tono = computed(() => {
   const tonos = [
-    'bg-cafe-100 text-cafe-700',
-    'bg-naranja-100 text-naranja-700',
-    'bg-beige-200 text-beige-700',
-    'bg-cafe-200 text-cafe-800',
-    'bg-naranja-50 text-naranja-600'
+    'bg-cafe-100 text-cafe-600',
+    'bg-naranja-100 text-naranja-600',
+    'bg-beige-200 text-beige-600',
+    'bg-cafe-200 text-cafe-700',
+    'bg-naranja-50 text-naranja-500'
   ]
 
   let suma = 0
@@ -67,62 +100,111 @@ const tono = computed(() => {
 
   return tonos[suma % tonos.length]
 })
+
+function agregar() {
+  if (activas.value.length === 0) return
+
+  // Muchas presentaciones y ninguna marcada: que elija en el selector.
+  if (!enTarjeta.value && unica.value === null && elegida.value === null) {
+    emit('elegir')
+    return
+  }
+
+  if (seleccion.value) emit('agregar', seleccion.value)
+}
 </script>
 
 <template>
-  <button
-    type="button"
-    class="tarjeta tarjeta-viva h-full text-left p-3.5 flex flex-col gap-3
-           focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-naranja-500"
+  <div
+    class="tarjeta h-full p-3 flex flex-col gap-3 transition
+           hover:shadow-alzada hover:border-naranja-200"
   >
-    <div class="flex items-start gap-3">
-      <!--
-        Con foto se muestra la foto; sin ella, la inicial sobre un tono
-        cálido. La inicial no es el diseño: es lo que evita que una
-        cuadrícula sin fotos se vea como una lista de texto, y desaparece
-        en cuanto el producto tiene la suya.
-      -->
+    <!-- Foto -->
+    <div class="rounded-xl overflow-hidden aspect-[4/3] shrink-0">
       <img
         v-if="producto.image_url"
         :src="producto.image_url"
         :alt="producto.name"
         loading="lazy"
-        class="size-14 shrink-0 rounded-lg object-cover bg-beige-100"
+        class="size-full object-cover"
       >
       <span
         v-else
-        class="size-14 shrink-0 rounded-lg flex items-center justify-center
-               text-2xl font-semibold select-none"
+        class="size-full flex items-center justify-center text-4xl font-semibold select-none"
         :class="tono"
         aria-hidden="true"
       >{{ inicial }}</span>
-
-      <span class="min-w-0 flex-1 font-medium leading-snug text-cafe-900 dark:text-beige-100">
-        {{ producto.name }}
-      </span>
     </div>
 
-    <div class="mt-auto flex items-end justify-between gap-2">
-      <span class="min-w-0">
+    <!-- Nombre y precio, en la misma línea -->
+    <div class="flex items-baseline justify-between gap-2">
+      <p class="font-semibold leading-snug text-cafe-900 dark:text-beige-100 min-w-0">
+        {{ producto.name }}
+      </p>
+
+      <span class="shrink-0 text-right">
         <span
           v-if="precio?.desde"
-          class="block text-[11px] text-beige-500 leading-none"
+          class="block text-[10px] text-beige-500 leading-none"
         >desde</span>
-
-        <span class="text-xl font-semibold tabular-nums text-cafe-800 dark:text-beige-100">
+        <span class="font-semibold tabular-nums text-cafe-800 dark:text-beige-100">
           {{ precio?.texto ?? '—' }}
         </span>
       </span>
-
-      <UBadge
-        v-if="activas.length > 1"
-        color="neutral"
-        variant="subtle"
-        size="sm"
-        class="shrink-0"
-      >
-        {{ activas.length }}
-      </UBadge>
     </div>
-  </button>
+
+    <p
+      v-if="producto.description"
+      class="text-xs text-beige-600 leading-snug line-clamp-2"
+    >
+      {{ producto.description }}
+    </p>
+
+    <!-- Presentaciones, cuando son pocas -->
+    <div
+      v-if="enTarjeta"
+      class="flex flex-wrap gap-1.5"
+    >
+      <button
+        v-for="v in activas"
+        :key="v.id"
+        type="button"
+        class="rounded-full px-2.5 py-1 text-xs font-medium border transition"
+        :class="seleccion?.id === v.id
+          ? 'bg-naranja-100 border-naranja-300 text-naranja-700'
+          : 'bg-white border-beige-200 text-beige-600 hover:border-beige-300'"
+        @click="elegida = v"
+      >
+        {{ v.name ?? 'Único' }}
+      </button>
+    </div>
+
+    <p
+      v-else-if="activas.length > MAXIMO_EN_TARJETA"
+      class="text-xs text-beige-500"
+    >
+      {{ activas.length }} presentaciones
+    </p>
+
+    <!--
+      El botón va en café, no en naranja.
+
+      Con una cuadrícula de doce productos, doce botones naranjas son un
+      muro: el color de acción deja de señalar nada porque está en todas
+      partes. El naranja se guarda para lo que de verdad manda —cobrar, el
+      filtro activo, la sección abierta— y agregar al carrito, que es el
+      gesto repetido y de bajo riesgo, se queda en el color de marca.
+    -->
+    <button
+      type="button"
+      class="toque mt-auto w-full rounded-xl bg-cafe-500 text-white font-medium
+             py-2.5 transition hover:bg-cafe-600
+             focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cafe-500
+             disabled:opacity-40 disabled:hover:bg-cafe-500"
+      :disabled="activas.length === 0"
+      @click="agregar"
+    >
+      Agregar
+    </button>
+  </div>
 </template>

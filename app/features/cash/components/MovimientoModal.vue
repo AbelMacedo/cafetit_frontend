@@ -41,13 +41,11 @@ const categorias: Array<{ valor: Categoria, etiqueta: string, direccion: Direcci
 const categoria = ref<Categoria>('save')
 const direccion = ref<Direccion>('out')
 const concepto = ref('')
-const montoPesos = ref(0)
+const montoCentavos = ref(0)
 const notas = ref('')
 
 const trabajando = ref(false)
 const error = ref<string | null>(null)
-
-const montoCentavos = computed(() => Math.round(montoPesos.value * 100))
 
 /**
  * Sacar más de lo que hay lo rechaza el backend, pero avisarlo antes
@@ -157,19 +155,11 @@ async function registrar() {
         </UFormField>
 
         <UFormField label="Monto">
-          <div class="flex items-center gap-3">
-            <UInput
-              v-model.number="montoPesos"
-              type="number"
-              min="0"
-              step="0.5"
-              class="w-40"
-              :ui="{ base: 'tabular-nums text-right text-lg' }"
-            />
-            <span class="text-xl font-semibold tabular-nums text-cafe-800 dark:text-beige-100">
-              {{ formatearCentavos(montoCentavos) }}
-            </span>
-          </div>
+          <CampoPesos
+            v-model="montoCentavos"
+            size="xl"
+            class="w-48"
+          />
         </UFormField>
 
         <UTextarea

@@ -43,7 +43,7 @@ async function enviar() {
           class="w-20 mb-4"
         />
         <h1 class="text-3xl font-semibold tracking-tight text-cafe-900 dark:text-beige-100">
-          Cafetit
+          La Cafetit
         </h1>
         <p class="text-sm text-beige-600 mt-1">
           Punto de venta
