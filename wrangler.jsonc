@@ -1,0 +1,29 @@
+{
+  // Despliegue del POS en Cloudflare.
+  //
+  // No hay código de servidor: `nuxt generate` deja HTML y JavaScript
+  // sueltos y Cloudflare los sirve tal cual. El «Worker» aquí es sólo el
+  // envoltorio que Cloudflare usa ahora para sitios estáticos.
+  "name": "cafetit-pos",
+  "compatibility_date": "2026-10-04",
+
+  "assets": {
+    // Lo que produce `npx nuxt generate`. Con `npm run build` saldría un
+    // servidor Nitro, que esto no ejecuta.
+    "directory": ".output/public",
+
+    /*
+     | El POS es una sola página y el enrutado lo hace el navegador.
+     |
+     | Sin esto, Cloudflare busca un archivo por cada ruta y devuelve 404
+     | en todo lo que no sea la raíz. Se nota al recargar estando en
+     | /ventas, al abrir un enlace guardado o al volver de un PDF: la
+     | aplicación funciona hasta que alguien pulsa F5.
+     |
+     | Devuelve el index con código 200, no un redirect: con un 301 el
+     | navegador cambiaría la barra de direcciones a «/» y el cajero
+     | perdería la pantalla en la que estaba.
+     */
+    "not_found_handling": "single-page-application"
+  }
+}
