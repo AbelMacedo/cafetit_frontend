@@ -1,0 +1,32 @@
+{
+  // Cómo sirve Cloudflare el POS.
+  //
+  // Este archivo existe SÓLO por `not_found_handling`. Lo demás —qué
+  // carpeta subir y con qué nombre— va en el comando de despliegue.
+  //
+  // Ojo si alguien lo toca: la primera vez que se puso, Nuxt vio un
+  // `wrangler.jsonc`, dedujo «esto va como Worker con servidor» y generó
+  // una configuración que apuntaba a un `index.mjs` inexistente —el POS
+  // es `ssr: false`, no hay servidor—. Lo que lo evita es la variable
+  // de compilación `NITRO_PRESET=static`. Si se quita esa variable,
+  // esto vuelve a romperse.
+  "name": "cafetit-pos",
+  "compatibility_date": "2026-10-04",
+
+  "assets": {
+    /*
+     | El POS es una sola página y el enrutado lo hace el navegador.
+     |
+     | Sin esto, Cloudflare busca un archivo por cada ruta y devuelve 404
+     | en todo lo que no sea la raíz. Se nota al recargar estando en
+     | /ventas, al abrir un enlace guardado o al volver de un PDF: la
+     | aplicación funciona hasta que alguien pulsa F5.
+     |
+     | Antes esto se intentó con un `_redirects` que decía
+     | `/* /index.html 200`, y Cloudflare lo rechaza: su servidor ya
+     | quita `.html` por su cuenta, así que esa regla se muerde la cola.
+     | Aquí es una opción, no una redirección, y por eso no hay bucle.
+     */
+    "not_found_handling": "single-page-application"
+  }
+}
