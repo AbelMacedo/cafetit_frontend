@@ -89,7 +89,7 @@ function alSalir() {
     @blur="alSalir"
   >
     <template #leading>
-      <span class="text-beige-500">$</span>
+      <span class="text-apagado-2">$</span>
     </template>
   </UInput>
 </template>

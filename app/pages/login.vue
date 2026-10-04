@@ -34,7 +34,7 @@ async function enviar() {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-beige-50 dark:bg-beige-950 p-4">
+  <div class="min-h-screen flex items-center justify-center bg-hundido p-4">
     <div class="w-full max-w-sm">
       <div class="flex flex-col items-center mb-8">
         <ImagenPendiente
@@ -42,10 +42,10 @@ async function enviar() {
           ratio="1/1"
           class="w-20 mb-4"
         />
-        <h1 class="text-3xl font-semibold tracking-tight text-cafe-900 dark:text-beige-100">
+        <h1 class="text-3xl font-semibold tracking-tight text-tinta">
           La Cafetit
         </h1>
-        <p class="text-sm text-beige-600 mt-1">
+        <p class="text-sm text-apagado mt-1">
           Punto de venta
         </p>
       </div>

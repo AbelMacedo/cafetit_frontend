@@ -33,6 +33,8 @@ export interface User {
   name: string
   email: string
   is_active: boolean
+  /** Si la cuenta puede relevar en el mostrador. Nunca cuál es el PIN. */
+  tiene_pin: boolean
   last_login_at: string | null
   store?: Store
 }
@@ -43,9 +45,22 @@ export interface Category {
   slug: string
   description: string | null
   color: string | null
+
+  /** Nombre corto del icono: `croissant`. El prefijo lo pone el servidor. */
+  icon: string | null
+  /** Listo para usar: `i-lucide-croissant`. Nulo si no tiene logo. */
+  icon_componente: string | null
+
   sort_order: number
   is_active: boolean
   products_count?: number
+}
+
+/** Un logo del catálogo que manda el servidor. */
+export interface LogoCategoria {
+  valor: string
+  texto: string
+  componente: string
 }
 
 export interface VariantOption {
@@ -65,6 +80,18 @@ export interface ProductVariant {
   tracks_stock: boolean
   min_stock: number | null
   options?: VariantOption[]
+
+  /**
+   * Piezas, para las variantes que controlan inventario.
+   *
+   * `vendibles` ya excluye lo caducado, igual que el cobro. Viene sólo
+   * en los listados que la piden; ausente quiere decir «no se preguntó»,
+   * que no es lo mismo que cero.
+   */
+  existencias?: {
+    vendibles: number
+    caducadas: number
+  }
 }
 
 export interface Product {
@@ -303,9 +330,18 @@ export interface ReporteVentas {
   resumen: {
     cantidad: number
     total: Money
+    /** Lo que habrían costado las líneas a precio de lista. */
+    subtotal_lista: Money
+    /** Neto de descuentos de renglón, antes del descuento a la venta. */
     subtotal: Money
+    descuentos_linea: Money
+    descuentos_todos: Money
+    /** Ajuste al peso, con su signo. */
+    redondeo: Money
     descuentos: Money
     impuesto: Money
+    /** Si el negocio cobra IVA. Las ventas viejas guardaron el suyo aunque hoy no. */
+    impuesto_aplica: boolean
     ticket_promedio: Money
     promedio_diario: Money
   }
@@ -318,6 +354,92 @@ export interface ReporteVentas {
     total: Money
     detalle: VentaCancelada[]
   }
+}
+
+/*
+ * Inventario y mermas
+ *
+ * Las dos partes van separadas porque son de naturaleza distinta:
+ * `existencias` es una fotografía del momento y no depende del rango;
+ * `mermas` sí es del periodo. Mezclarlas haría parecer que el valor del
+ * inventario es el que había aquel mes.
+ */
+
+export interface LineaExistencia {
+  nombre: string
+  variante: string | null
+  lotes: number
+  piezas: number
+  valor: Money
+}
+
+export interface LineaEnRiesgo {
+  nombre: string
+  variante: string | null
+  piezas: number
+  valor: Money
+  caduca: string | null
+  vencido: boolean
+}
+
+export interface LineaMotivoMerma {
+  motivo: string
+  etiqueta: string
+  /** Una cortesía es una decisión comercial; que caduque es una falla. */
+  evitable: boolean
+  piezas: number
+  costo: Money
+}
+
+export interface LineaMermaProducto {
+  nombre: string
+  variante: string | null
+  piezas: number
+  costo: Money
+}
+
+export interface LineaMermaDia {
+  fecha: string
+  piezas: number
+  costo: Money
+}
+
+export interface ReporteInventario {
+  periodo: { desde: string, hasta: string, zona: string }
+  generado_en: string
+  vacio: boolean
+
+  existencias: {
+    /** De cuándo es la fotografía. No es el periodo. */
+    al_momento: string
+    lotes: number
+    piezas: number
+    valor: Money
+    valor_en_riesgo: Money
+    /** La lista va acotada; la cifra de arriba cuenta todos los lotes. */
+    en_riesgo_recortado: boolean
+    en_riesgo_lotes: number
+    por_producto: LineaExistencia[]
+    en_riesgo: LineaEnRiesgo[]
+  }
+
+  mermas: {
+    piezas: number
+    costo: Money
+    costo_evitable: Money
+    /** Qué proporción de lo que entró acabó en la basura. */
+    porcentaje_sobre_entradas: number
+
+    /** Falso cuando no hubo compras: entonces el porcentaje no dice nada. */
+    porcentaje_comparable: boolean
+    /** Pasa del 100%: se tiró mercancía que entró antes del periodo. */
+    tirado_de_antes: boolean
+    por_motivo: LineaMotivoMerma[]
+    por_producto: LineaMermaProducto[]
+    por_dia: LineaMermaDia[]
+  }
+
+  entradas: { piezas: number, costo: Money }
 }
 
 /*

@@ -75,11 +75,10 @@ onUnmounted(liberar)
   <div class="flex items-center gap-4">
     <button
       type="button"
-      class="size-20 shrink-0 rounded-xl overflow-hidden border border-beige-200
-             dark:border-beige-800 flex items-center justify-center
+      class="size-20 shrink-0 rounded-xl overflow-hidden border border-borde flex items-center justify-center
              hover:border-naranja-400 focus-visible:outline-2 focus-visible:outline-offset-2
              focus-visible:outline-naranja-500 transition"
-      :class="mostrada === null ? 'bg-beige-100 dark:bg-beige-900' : ''"
+      :class="mostrada === null ? 'bg-hundido' : ''"
       :aria-label="mostrada === null ? 'Agregar foto' : 'Cambiar foto'"
       @click="elegir"
     >
@@ -91,7 +90,7 @@ onUnmounted(liberar)
       >
       <span
         v-else
-        class="text-2xl font-semibold text-beige-400"
+        class="text-2xl font-semibold text-apagado-2"
       >{{ inicial }}</span>
     </button>
 
@@ -118,7 +117,7 @@ onUnmounted(liberar)
         </UButton>
       </div>
 
-      <p class="text-xs text-beige-600">
+      <p class="text-xs text-apagado">
         JPG, PNG o WebP, hasta 4 MB. Sin foto, la pantalla de venta muestra
         la inicial del producto.
       </p>

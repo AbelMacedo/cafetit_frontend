@@ -30,16 +30,16 @@ withDefaults(defineProps<{
   >
     <UIcon
       :name="icono"
-      class="size-10 text-beige-300 mx-auto mb-3"
+      class="size-10 text-apagado-2 mx-auto mb-3"
     />
 
-    <p class="font-medium text-cafe-800 dark:text-beige-200">
+    <p class="font-medium text-tinta">
       {{ titulo }}
     </p>
 
     <p
       v-if="descripcion"
-      class="text-sm text-beige-600 mt-1 max-w-sm mx-auto"
+      class="text-sm text-apagado mt-1 max-w-sm mx-auto"
     >
       {{ descripcion }}
     </p>

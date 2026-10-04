@@ -287,7 +287,7 @@ onMounted(() => {
           />
         </UFormField>
 
-        <div class="border-t border-beige-200 dark:border-beige-800 pt-4 space-y-4">
+        <div class="border-t border-borde pt-4 space-y-4">
           <UCheckbox
             v-model="tieneVariaciones"
             label="Tiene variaciones (tamaño, temperatura...)"
@@ -373,7 +373,7 @@ onMounted(() => {
 
             <p
               v-else
-              class="text-sm text-beige-600"
+              class="text-sm text-apagado"
             >
               Elige al menos una opción para generar las combinaciones.
             </p>

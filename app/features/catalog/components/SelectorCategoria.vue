@@ -12,6 +12,9 @@ import type { Category } from '~/shared/types/api'
 const props = defineProps<{
   categorias: Category[]
   modelValue: number | null
+  /** Se pasan tal cual a `FiltroSelect`. */
+  tamano?: 'sm' | 'md' | 'lg' | 'xl'
+  ancho?: string
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [valor: number | null] }>()
@@ -19,8 +22,15 @@ const emit = defineEmits<{ 'update:modelValue': [valor: number | null] }>()
 const TODO = 0
 
 const opciones = computed(() => [
-  { label: 'Todas las categorías', value: TODO },
-  ...props.categorias.map(c => ({ label: c.name, value: c.id }))
+  { label: 'Todas', value: TODO },
+
+  // El logo de cada categoría: en el mostrador se reconoce antes el
+  // dibujo que el nombre, y es para lo que se eligió.
+  ...props.categorias.map(c => ({
+    label: c.name,
+    value: c.id,
+    icon: c.icon_componente ?? undefined
+  }))
 ])
 
 const seleccion = computed({
@@ -33,7 +43,9 @@ const seleccion = computed({
   <FiltroSelect
     v-model="seleccion"
     :opciones="opciones"
+    :tamano="tamano"
+    icono="i-lucide-tags"
     etiqueta="Filtrar por categoría"
-    ancho="w-52"
+    :ancho="ancho ?? 'w-52'"
   />
 </template>

@@ -87,7 +87,7 @@ async function cerrar() {
         v-if="!resultado"
         class="space-y-4"
       >
-        <p class="text-sm text-beige-600">
+        <p class="text-sm text-apagado">
           Cuenta el efectivo del cajón y captura cuántas piezas hay de cada
           denominación. El sistema te dirá la diferencia al terminar.
         </p>
@@ -98,23 +98,30 @@ async function cerrar() {
             :key="d"
             class="flex items-center gap-2"
           >
-            <span class="w-20 text-sm tabular-nums text-beige-700 dark:text-beige-300">
+            <span class="w-20 text-sm tabular-nums text-apagado">
               {{ formatearCentavos(d) }}
             </span>
+            <!--
+              El importe de al lado es el nombre de la casilla, pero sólo
+              para quien lo ve: un lector de pantalla anunciaba once
+              campos numéricos sin nombre, y contar la caja a ciegas
+              requiere saber cuál es cuál.
+            -->
             <UInput
               v-model.number="conteo[d]"
               type="number"
               min="0"
               size="sm"
               class="flex-1"
+              :aria-label="`Billetes o monedas de ${formatearCentavos(d)}`"
               :ui="{ base: 'tabular-nums text-right' }"
             />
           </div>
         </div>
 
-        <div class="flex items-baseline justify-between border-t border-beige-200 dark:border-beige-800 pt-3">
+        <div class="flex items-baseline justify-between border-t border-borde pt-3">
           <span class="font-medium">Total contado</span>
-          <span class="text-2xl font-semibold tabular-nums text-cafe-800 dark:text-beige-100">
+          <span class="text-2xl font-semibold tabular-nums text-tinta">
             {{ formatearCentavos(contado) }}
           </span>
         </div>
@@ -150,7 +157,7 @@ async function cerrar() {
       >
         <dl class="space-y-2 text-sm">
           <div class="flex justify-between">
-            <dt class="text-beige-600">
+            <dt class="text-apagado">
               Fondo de caja
             </dt>
             <dd class="tabular-nums">
@@ -158,7 +165,7 @@ async function cerrar() {
             </dd>
           </div>
           <div class="flex justify-between">
-            <dt class="text-beige-600">
+            <dt class="text-apagado">
               Ventas en efectivo
             </dt>
             <dd class="tabular-nums">
@@ -166,7 +173,7 @@ async function cerrar() {
             </dd>
           </div>
           <div class="flex justify-between">
-            <dt class="text-beige-600">
+            <dt class="text-apagado">
               Entradas
             </dt>
             <dd class="tabular-nums">
@@ -174,14 +181,14 @@ async function cerrar() {
             </dd>
           </div>
           <div class="flex justify-between">
-            <dt class="text-beige-600">
+            <dt class="text-apagado">
               Salidas
             </dt>
             <dd class="tabular-nums">
               − {{ resultado.dinero_en_caja.salidas.formatted }}
             </dd>
           </div>
-          <div class="flex justify-between border-t border-beige-200 dark:border-beige-800 pt-2">
+          <div class="flex justify-between border-t border-borde pt-2">
             <dt class="font-medium">
               Efectivo esperado
             </dt>
@@ -211,7 +218,7 @@ async function cerrar() {
             ? 'bg-success-50 dark:bg-success-950'
             : 'bg-warning-50 dark:bg-warning-950'"
         >
-          <p class="text-sm text-beige-700 dark:text-beige-300">
+          <p class="text-sm text-apagado">
             {{ resultado.arqueo.diferencia.cents === 0
               ? 'La caja cuadra'
               : (resultado.arqueo.hay_faltante ? 'Faltante' : 'Sobrante') }}
@@ -221,8 +228,9 @@ async function cerrar() {
           </p>
         </div>
 
-        <div class="text-sm text-beige-600 text-center">
-          Turno #{{ resultado.turno.folio }} · {{ resultado.ventas.cantidad }} ventas ·
+        <div class="text-sm text-apagado text-center">
+          Turno #{{ resultado.turno.folio }} · {{ resultado.ventas.cantidad }}
+          {{ resultado.ventas.cantidad === 1 ? 'venta' : 'ventas' }} ·
           {{ resultado.ventas.total.formatted }}
         </div>
       </div>

@@ -50,7 +50,7 @@ export default defineAppConfig({
 
     card: {
       slots: {
-        root: 'rounded-2xl shadow-suave ring-beige-200/75',
+        root: 'rounded-2xl shadow-suave ring-borde/75',
         header: 'p-4 sm:px-5',
         body: 'p-4 sm:p-5',
         footer: 'p-4 sm:px-5'
@@ -71,7 +71,7 @@ export default defineAppConfig({
 
     popover: {
       slots: {
-        content: 'rounded-2xl shadow-alzada ring-beige-200/75'
+        content: 'rounded-2xl shadow-alzada ring-borde/75'
       }
     }
   }

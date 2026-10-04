@@ -128,7 +128,7 @@ function aplicar() {
               :ui="{ base: 'tabular-nums text-right' }"
             >
               <template #trailing>
-                <span class="text-beige-500">%</span>
+                <span class="text-apagado-2">%</span>
               </template>
             </UInput>
           </div>
@@ -167,18 +167,18 @@ function aplicar() {
         </UFormField>
 
         <!-- El resultado, no la fórmula: es lo que se va a cobrar -->
-        <div class="rounded-xl bg-beige-100 dark:bg-beige-900 p-3 space-y-1.5 text-sm">
+        <div class="rounded-xl bg-hundido p-3 space-y-1.5 text-sm">
           <div class="flex justify-between">
-            <span class="text-beige-600">{{ esVenta ? 'Subtotal' : 'Precio' }}</span>
+            <span class="text-apagado">{{ esVenta ? 'Subtotal' : 'Precio' }}</span>
             <span class="tabular-nums">{{ formatearCentavos(base) }}</span>
           </div>
           <div class="flex justify-between">
-            <span class="text-beige-600">Descuento</span>
+            <span class="text-apagado">Descuento</span>
             <span class="tabular-nums text-naranja-600">− {{ formatearCentavos(descuento) }}</span>
           </div>
-          <div class="flex items-baseline justify-between border-t border-beige-300 dark:border-beige-700 pt-1.5">
+          <div class="flex items-baseline justify-between border-t border-borde-marcado pt-1.5">
             <span class="font-medium">Queda en</span>
-            <span class="text-2xl font-semibold tabular-nums text-cafe-800 dark:text-beige-100">
+            <span class="text-2xl font-semibold tabular-nums text-tinta">
               {{ formatearCentavos(resultante) }}
             </span>
           </div>

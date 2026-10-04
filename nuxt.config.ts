@@ -35,31 +35,41 @@ export default defineNuxtConfig({
    */
 
   /*
-   * El POS va siempre en claro, sin seguir la preferencia del sistema.
+   * Claro por omisión, oscuro si alguien lo pide. Nunca por el sistema.
    *
-   * No es una manía: la paleta del negocio es beige, café y naranja —
-   * colores cálidos y claros— y en oscuro no queda ninguno de los tres,
-   * sólo un panel casi negro con un botón naranja. La marca desaparece.
+   * Estuvo forzado a claro un tiempo, y con razón: la paleta del negocio
+   * —beige, café y naranja— se diseñó para claro, y lo que había era
+   * media docena de `dark:` sueltos que dejaban texto café sobre fondo
+   * café. Ahora el oscuro tiene su propia paleta, en `main.css`.
    *
-   * Y es un aparato de mostrador, no la computadora de alguien: quien lo
-   * usa no eligió el tema del sistema operativo de esa terminal, así que
-   * heredarlo sólo hace que dos cajas se vean distintas sin motivo.
-   *
-   * La landing sí podrá tener modo oscuro: ahí la decisión es de quien
-   * visita, no del negocio.
+   * `preference` y no `'system'` a propósito: es un aparato de mostrador,
+   * no la computadora de alguien. Quien lo usa no eligió el tema de
+   * Windows de esa terminal, y heredarlo haría que dos cajas del mismo
+   * negocio se vieran distintas sin que nadie lo hubiera decidido. Se
+   * cambia desde el menú de la cuenta y se queda guardado en ese aparato.
    */
   colorMode: {
     preference: 'light',
     fallback: 'light',
 
     /*
-     * La llave lleva sufijo porque el módulo guarda la preferencia en el
-     * navegador y lo guardado gana sobre lo configurado. Una terminal que
-     * ya hubiera abierto el POS tendría 'system' escrito y seguiría en
-     * oscuro por más que aquí diga 'light'. Cambiar la llave hace que ese
-     * valor viejo deje de aplicar, sin pedirle a nadie que borre nada.
+     * El sufijo del módulo se deja vacío: la clase tiene que ser `dark` a
+     * secas, que es la que esperan tanto Nuxt UI como el bloque `.dark`
+     * de `main.css`. Con el sufijo por omisión sería `dark-mode` y no
+     * coincidiría con ninguno de los dos.
      */
-    storageKey: 'cafetit-tema-claro'
+    classSuffix: '',
+
+    /*
+     * La llave cambia de nombre al cambiar el significado.
+     *
+     * El módulo guarda la preferencia en el navegador y lo guardado gana
+     * sobre lo configurado. La llave anterior se puso para anular un
+     * 'system' viejo que dejaba terminales en oscuro; ahora que el oscuro
+     * se elige a mano, una terminal con aquel valor escrito arrancaría
+     * con una preferencia que su dueño nunca tomó.
+     */
+    storageKey: 'cafetit-tema'
   },
 
   runtimeConfig: {

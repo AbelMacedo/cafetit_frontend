@@ -140,18 +140,18 @@ const movimientos = computed(() => {
         <UCard>
           <dl class="space-y-2 text-sm">
             <div class="flex justify-between">
-              <dt class="text-beige-600">
+              <dt class="text-apagado">
                 Fondo de caja
               </dt>
               <dd><MontoDinero :valor="caja.turno.dinero_en_caja.fondo" /></dd>
             </div>
             <div class="flex justify-between">
-              <dt class="text-beige-600">
+              <dt class="text-apagado">
                 Ventas en efectivo
               </dt>
               <dd><MontoDinero :valor="caja.turno.dinero_en_caja.ventas_en_efectivo" /></dd>
             </div>
-            <div class="flex justify-between items-baseline border-t border-beige-200 dark:border-beige-800 pt-2">
+            <div class="flex justify-between items-baseline border-t border-borde pt-2">
               <dt class="font-medium">
                 Efectivo esperado
               </dt>
@@ -163,7 +163,7 @@ const movimientos = computed(() => {
               </dd>
             </div>
             <div class="flex justify-between">
-              <dt class="text-beige-600">
+              <dt class="text-apagado">
                 Ventas del turno
               </dt>
               <dd class="tabular-nums">
@@ -231,7 +231,7 @@ const movimientos = computed(() => {
               <h2 class="font-semibold">
                 Movimientos del turno
               </h2>
-              <span class="text-sm text-beige-600">
+              <span class="text-sm text-apagado">
                 {{ movimientos.length }} en total
               </span>
             </div>
@@ -257,10 +257,10 @@ const movimientos = computed(() => {
                 <UIcon
                   :name="m.entra ? 'i-lucide-arrow-down-to-line' : 'i-lucide-arrow-up-from-line'"
                   class="size-3"
-                  :class="m.entra ? 'text-success-600' : 'text-beige-500'"
+                  :class="m.entra ? 'text-success-600' : 'text-apagado-2'"
                 />
                 {{ m.concepto }}
-                <span class="text-xs text-beige-600">· {{ m.categoria }} · {{ horaDe(m.hora) }}</span>
+                <span class="text-xs text-apagado">· {{ m.categoria }} · {{ horaDe(m.hora) }}</span>
               </span>
 
               <MontoDinero

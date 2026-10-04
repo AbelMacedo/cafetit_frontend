@@ -5,11 +5,16 @@ import { ApiError } from '~/shared/composables/useApi'
 import { formatearCentavos } from '~/shared/utils/dinero'
 import type { Lote, MotivoMerma } from '~/shared/types/api'
 
-definePageMeta({ middleware: 'auth' })
+/*
+ * `altoCompleto`: la tabla se queda con el alto sobrante y es lo único
+ * que se desplaza. En la tableta del mostrador, con la página moviéndose
+ * por fuera y la lista por dentro, el dedo arrastra lo que no era.
+ */
+definePageMeta({ middleware: 'auth', altoCompleto: true })
 
 const toast = useToast()
 const {
-  lotes, porCaducar, resumen, ventanaHoras, conStock,
+  lotes, porCaducar, ventanaHoras, conStock,
   cargando, error, cargar, cargarProductosConStock, recibir, mermar
 } = useInventory()
 
@@ -139,23 +144,107 @@ function nombreDe(lote: Lote): string {
  * Recarga desde el servidor: la ventana es parte de la consulta, no un
  * filtro sobre lo que ya se trajo.
  */
-const ventanas = [
-  { value: 12, label: 'Próximas 12 horas' },
-  { value: 24, label: 'Próximas 24 horas' },
-  { value: 72, label: 'Próximos 3 días' }
+/*
+ * «Sacar primero» dejó de ser una lista aparte: es un filtro.
+ *
+ * Eran dos listas con el mismo aspecto, y un lote por caducar aparecía
+ * en las dos — la misma charola dos veces, que se lee como un error del
+ * sistema. Es el mismo inventario mirado con distinto alcance, así que
+ * va en el mismo sitio y se acota desde arriba.
+ */
+const alcances = [
+  { value: 'todo', label: 'Todo el inventario' },
+  { value: '12', label: 'Caducan en 12 h' },
+  { value: '24', label: 'Caducan en 24 h' },
+  { value: '72', label: 'Caducan en 3 días' }
 ]
 
-const ventanaFiltro = computed({
-  get: () => ventanaHoras.value,
+const alcance = ref('24')
+
+const esUrgente = computed(() => alcance.value !== 'todo')
+
+const alcanceFiltro = computed({
+  get: () => alcance.value,
   set: (v: string | number) => {
-    ventanaHoras.value = Number(v)
-    void cargar()
+    alcance.value = String(v)
+
+    // «Todo» no recarga: `cargar()` ya trae las dos listas de una vez.
+    if (alcance.value !== 'todo') {
+      ventanaHoras.value = Number(alcance.value)
+      void cargar()
+    }
+  }
+})
+
+const busqueda = ref('')
+
+/**
+ * Hay filtro puesto si el texto dice algo o si el alcance no es «todo».
+ *
+ * El alcance cuenta: abrir en «por caducar 24 h» es cómodo —es la
+ * pregunta de la mañana— pero es un recorte, y quien no vea su lote
+ * tiene que poder quitarlo de un toque sin adivinar cuál de los
+ * controles lo está escondiendo.
+ */
+const hayBusqueda = computed(() => busqueda.value.trim() !== '')
+
+const filtrada = computed(() => hayBusqueda.value || alcance.value !== 'todo')
+
+function limpiarFiltros(): void {
+  busqueda.value = ''
+  alcance.value = 'todo'
+}
+
+/** Lo que se pinta: el alcance elegido, filtrado por texto en memoria. */
+const visibles = computed(() => {
+  const base = esUrgente.value ? porCaducar.value : lotes.value
+  const texto = busqueda.value.trim().toLowerCase()
+
+  if (!texto) return base
+
+  return base.filter(l =>
+    nombreDe(l).toLowerCase().includes(texto)
+    || (l.proveedor ?? '').toLowerCase().includes(texto)
+    || (l.lote ?? '').toLowerCase().includes(texto)
+  )
+})
+
+/**
+ * Dos cifras, no una, porque piden cosas distintas.
+ *
+ * «En riesgo» quiere decir *se va a perder si nadie lo vende*. Un lote
+ * que caducó hace seis días no está en riesgo: **ya se perdió**, y lo
+ * único que queda es darlo de baja. Juntarlos en un solo número hacía
+ * que el dinero perdido pareciera dinero que todavía se puede salvar,
+ * que es justo la confusión que este módulo existe para evitar.
+ *
+ * Salen de lo que está en pantalla, no de la consulta: el buscador
+ * filtra en memoria y una cifra que no describe su propia lista es peor
+ * que no ponerla.
+ */
+const cifras = computed(() => {
+  const suma = (f: (l: Lote) => boolean) =>
+    visibles.value.filter(f).reduce((n, l) => n + l.valor_restante.cents, 0)
+
+  const perdido = suma(l => l.caducado)
+  const vigente = suma(l => !l.caducado)
+
+  return {
+    // Ya no se vende: hay que darlo de baja como merma.
+    perdido,
+    // Todavía se puede vender; en la ventana elegida, con prisa.
+    vigente,
+    rotuloVigente: esUrgente.value ? 'Por caducar' : 'En charolas'
   }
 })
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-3 md:h-full md:flex md:flex-col md:min-h-0">
+    <!--
+      `space-y-3` y no 6: son bloques encadenados —esto filtra aquello—
+      y tanto hueco los hacía parecer independientes.
+    -->
     <PaginaTitulo
       titulo="Inventario"
       descripcion="Por lotes, no por producto: dos charolas que entraron a horas distintas caducan a horas distintas."
@@ -166,7 +255,7 @@ const ventanaFiltro = computed({
           class="toque"
           @click="mostrarEntrada = true"
         >
-          Entrada
+          Nueva entrada
         </UButton>
       </template>
     </PaginaTitulo>
@@ -178,170 +267,208 @@ const ventanaFiltro = computed({
       :title="error"
     />
 
-    <!-- Sacar hoy: lo primero, porque es lo que decide el día -->
-    <section class="space-y-3">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 class="text-lg font-semibold">
-            Sacar primero
-          </h2>
-          <p class="text-sm text-beige-600">
-            En orden de urgencia. Lo de arriba se vende antes.
-          </p>
-        </div>
+    <BarraFiltros
+      :visibles="visibles.length"
+      :total="esUrgente ? porCaducar.length : lotes.length"
+    >
+      <template #buscar>
+        <UInput
+          v-model="busqueda"
+          placeholder="Producto, lote o proveedor"
+          icon="i-lucide-search"
+          size="lg"
+          class="w-48 2xl:w-64"
+        />
+      </template>
 
-        <div class="flex items-center gap-1">
-          <FiltroSelect
-            v-model="ventanaFiltro"
-            :opciones="ventanas"
-            etiqueta="Ventana de caducidad"
-            icono="i-lucide-clock"
-            ancho="w-52"
-          />
-        </div>
-      </div>
+      <template #filtros>
+        <FiltroSelect
+          v-model="alcanceFiltro"
+          :opciones="alcances"
+          tamano="lg"
+          etiqueta="Qué mostrar"
+          icono="i-lucide-clock"
+          ancho="w-52 2xl:w-56"
+        />
 
-      <!-- El valor en riesgo es el argumento del módulo: sin esta cifra,
-             el control de caducidades es sólo trabajo administrativo -->
-      <div
-        v-if="resumen && resumen.lotes > 0"
-        class="rounded-lg border p-4 flex flex-wrap items-center justify-between gap-4"
-        :class="resumen.ya_caducados > 0
-          ? 'border-error-300 bg-error-50 dark:border-error-800 dark:bg-error-950'
-          : 'border-warning-300 bg-warning-50 dark:border-warning-800 dark:bg-warning-950'"
-      >
-        <div>
-          <p class="text-sm text-beige-700 dark:text-beige-300">
-            {{ resumen.piezas }} piezas en {{ resumen.lotes }}
-            {{ resumen.lotes === 1 ? 'lote' : 'lotes' }}
-            <template v-if="resumen.ya_caducados > 0">
-              · <strong>{{ resumen.ya_caducados }} ya caducado{{ resumen.ya_caducados === 1 ? '' : 's' }}</strong>
-            </template>
-          </p>
-          <p class="text-xs text-beige-600 mt-0.5">
-            Se pierde si no se vende en {{ resumen.ventana_horas }} horas
-          </p>
-        </div>
-        <p class="text-3xl font-semibold tabular-nums">
-          {{ resumen.valor_en_riesgo.formatted }}
-        </p>
-      </div>
-
-      <SinResultados
-        v-else-if="!cargando"
-        icono="i-lucide-shield-check"
-        :titulo="`Nada por caducar en las próximas ${ventanaHoras} horas`"
-        descripcion="Nada en riesgo en esta ventana."
-      />
-
-      <EsqueletoLista
-        v-if="cargando"
-        :filas="3"
-      />
-
-      <div class="space-y-2">
-        <div
-          v-for="l in porCaducar"
-          :key="l.id"
-          class="tarjeta p-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3"
+        <!--
+          Limpiar vive con los filtros. Pierde el rótulo antes de que la
+          fila se parta: el icono dice lo mismo en la mitad de sitio y el
+          nombre sigue en el `title` y para el lector de pantalla.
+        -->
+        <UButton
+          size="lg"
+          variant="ghost"
+          color="neutral"
+          icon="i-lucide-filter-x"
+          title="Quitar los filtros"
+          aria-label="Quitar los filtros"
+          :disabled="!filtrada"
+          @click="limpiarFiltros"
         >
-          <div class="min-w-0 flex-1">
-            <p class="font-medium leading-tight">
-              {{ nombreDe(l) }}
-            </p>
-            <p class="text-xs text-beige-600">
-              {{ l.restantes }} de {{ l.recibidas }} piezas
-              <template v-if="l.lote">
-                · {{ l.lote }}
-              </template>
-            </p>
-          </div>
+          <span class="hidden 2xl:inline">Limpiar</span>
+        </UButton>
 
-          <div class="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 shrink-0">
-            <UrgenciaLote
-              :horas="l.horas_para_caducar"
-              :caducado="l.caducado"
-            />
-
-            <span class="text-sm font-semibold tabular-nums text-right">
-              {{ l.valor_restante.formatted }}
-            </span>
-
-            <UButton
-              size="xs"
-              variant="outline"
-              color="neutral"
-              @click="abrirMerma(l)"
-            >
-              Merma
-            </UButton>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Todo el inventario -->
-    <section class="space-y-3">
-      <h2 class="text-lg font-semibold">
-        Todo el inventario
-      </h2>
-
-      <SinResultados
-        v-if="!cargando && lotes.length === 0"
-        icono="i-lucide-package"
-        titulo="No hay lotes cargados"
-        descripcion="El inventario se lleva por lotes: cada entrada de mercancía es uno."
-      >
-        <template #accion>
-          <UButton
-            icon="i-lucide-plus"
-            @click="mostrarEntrada = true"
+        <!--
+          La cifra al otro extremo de la fila: a un lado lo que acota la
+          lista, al otro lo que esa lista suma. Mide lo mismo que los
+          controles —una caja más alta que su fila se lee como algo que
+          se coló— y el rótulo evita que una cifra suelta entre controles
+          parezca un filtro más.
+        -->
+        <div class="ms-auto flex items-center gap-2">
+          <!--
+            Lo caducado va aparte y en rojo: no es una cifra que mirar,
+            es trabajo pendiente. Sólo aparece si lo hay.
+          -->
+          <div
+            v-if="cifras.perdido > 0"
+            class="tarjeta h-9 px-3 flex items-center gap-2 border-error-200"
           >
-            Registrar entrada
-          </UButton>
-        </template>
-      </SinResultados>
-
-      <div class="space-y-2">
-        <div
-          v-for="l in lotes"
-          :key="l.id"
-          class="tarjeta p-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3"
-        >
-          <div class="min-w-0 flex-1">
-            <p class="font-medium leading-tight">
-              {{ nombreDe(l) }}
-            </p>
-            <p class="text-xs text-beige-600">
-              {{ l.restantes }} piezas
-              <template v-if="l.proveedor">
-                · {{ l.proveedor }}
-              </template>
-            </p>
+            <span class="text-sm text-apagado">Caducado:</span>
+            <span class="font-medium tabular-nums whitespace-nowrap text-error-600">
+              {{ formatearCentavos(cifras.perdido) }}
+            </span>
           </div>
 
-          <div class="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 shrink-0">
-            <UrgenciaLote
-              :horas="l.horas_para_caducar"
-              :caducado="l.caducado"
-            />
-
-            <span class="text-sm tabular-nums text-right text-beige-600">
-              {{ l.valor_restante.formatted }}
+          <div class="tarjeta h-9 px-3 flex items-center gap-2">
+            <span class="text-sm text-apagado">{{ cifras.rotuloVigente }}:</span>
+            <span class="font-medium tabular-nums whitespace-nowrap text-tinta">
+              {{ formatearCentavos(cifras.vigente) }}
             </span>
-
-            <UButton
-              size="xs"
-              variant="ghost"
-              color="neutral"
-              @click="abrirMerma(l)"
-            >
-              Merma
-            </UButton>
           </div>
         </div>
+      </template>
+
+      <template #resumen>
+        <template v-if="esUrgente">
+          En orden de urgencia: lo de arriba se vende antes.
+        </template>
+      </template>
+    </BarraFiltros>
+
+    <EsqueletoLista
+      v-if="cargando"
+      :filas="5"
+    />
+
+    <SinResultados
+      v-else-if="visibles.length === 0"
+      :icono="hayBusqueda
+        ? 'i-lucide-search-x'
+        : (esUrgente ? 'i-lucide-shield-check' : 'i-lucide-package')"
+      :titulo="hayBusqueda
+        ? 'Ningún lote coincide'
+        : (esUrgente
+          ? `Nada por caducar en las próximas ${ventanaHoras} horas`
+          : 'No hay lotes cargados')"
+      :descripcion="hayBusqueda
+        ? 'Prueba con otro texto, o mira todo el inventario.'
+        : (esUrgente
+          ? 'Nada en riesgo en esta ventana.'
+          : 'El inventario se lleva por lotes: cada entrada de mercancía es uno.')"
+    >
+      <template #accion>
+        <UButton
+          v-if="hayBusqueda || esUrgente"
+          variant="outline"
+          color="neutral"
+          icon="i-lucide-filter-x"
+          @click="limpiarFiltros"
+        >
+          Quitar filtros
+        </UButton>
+        <UButton
+          v-else
+          icon="i-lucide-plus"
+          @click="mostrarEntrada = true"
+        >
+          Registrar entrada
+        </UButton>
+      </template>
+    </SinResultados>
+
+    <div
+      v-else
+      class="tarjeta overflow-hidden md:flex-1 md:min-h-0"
+    >
+      <div class="overflow-auto max-h-[60vh] md:max-h-none md:h-full">
+        <table class="w-full text-sm">
+          <thead class="sticky top-0 z-10">
+            <tr class="text-center [&>th]:border-r [&>th]:border-borde [&>th:last-child]:border-r-0">
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde">
+                Producto
+              </th>
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde hidden lg:table-cell">
+                Lote
+              </th>
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde">
+                Piezas
+              </th>
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde">
+                Caduca
+              </th>
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde">
+                Valor
+              </th>
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde">
+                Acciones
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr
+              v-for="l in visibles"
+              :key="l.id"
+              class="border-b border-borde-suave last:border-0 transition
+                     [&>td]:border-r [&>td]:border-borde-suave [&>td:last-child]:border-r-0"
+              :class="l.caducado ? 'bg-error-50/40 dark:bg-error-950/30' : ''"
+            >
+              <td class="px-3 lg:px-4 py-4 text-center w-2/5 max-w-0 truncate font-medium">
+                {{ nombreDe(l) }}
+              </td>
+
+              <td class="px-3 lg:px-4 py-4 text-center w-1/5 max-w-0 truncate text-apagado hidden lg:table-cell">
+                {{ l.lote ?? l.proveedor ?? '—' }}
+              </td>
+
+              <!--
+                «6 de 8» y no sólo «6»: dice cuánto se ha ido de la charola,
+                que es lo que distingue un lote que no se está vendiendo de
+                uno que acaba de entrar.
+              -->
+              <td class="px-3 lg:px-4 py-4 text-center tabular-nums whitespace-nowrap">
+                {{ l.restantes }}
+                <span class="text-apagado-2 text-xs">de {{ l.recibidas }}</span>
+              </td>
+
+              <td class="px-3 lg:px-4 py-4 text-center whitespace-nowrap">
+                <UrgenciaLote
+                  :horas="l.horas_para_caducar"
+                  :caducado="l.caducado"
+                />
+              </td>
+
+              <td class="px-3 lg:px-4 py-4 text-center tabular-nums font-medium whitespace-nowrap">
+                {{ l.valor_restante.formatted }}
+              </td>
+
+              <td class="px-3 lg:px-4 py-4 text-center whitespace-nowrap">
+                <UButton
+                  size="sm"
+                  variant="outline"
+                  color="neutral"
+                  @click="abrirMerma(l)"
+                >
+                  Merma
+                </UButton>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-    </section>
+    </div>
 
     <!--
       Se monta y desmonta con v-if, no sólo con :open.
@@ -421,7 +548,7 @@ const ventanaFiltro = computed({
 
           <p
             v-if="entrada.horas_de_vida > 0"
-            class="text-sm text-beige-600 text-right"
+            class="text-sm text-apagado text-right"
           >
             Caduca el {{ caducaEn.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) }}
           </p>
@@ -443,7 +570,7 @@ const ventanaFiltro = computed({
             </UFormField>
           </div>
 
-          <p class="text-right text-sm text-beige-600 tabular-nums">
+          <p class="text-right text-sm text-apagado tabular-nums">
             Valor del lote:
             {{ formatearCentavos(entrada.unit_cost_cents * entrada.quantity) }}
           </p>
@@ -491,11 +618,11 @@ const ventanaFiltro = computed({
     >
       <template #body>
         <div class="space-y-4">
-          <div class="rounded-lg bg-beige-100 dark:bg-beige-900 p-3">
+          <div class="rounded-lg bg-hundido p-3">
             <p class="font-medium">
               {{ nombreDe(loteAMermar) }}
             </p>
-            <p class="text-sm text-beige-600">
+            <p class="text-sm text-apagado">
               Quedan {{ loteAMermar.restantes }} piezas · {{ loteAMermar.valor_restante.formatted }}
             </p>
           </div>

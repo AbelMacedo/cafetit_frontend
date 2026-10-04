@@ -5,7 +5,11 @@ import { type AltaEmpleado, type CambioEmpleado, useUsers } from '~/features/use
 import { ApiError } from '~/shared/composables/useApi'
 import type { User } from '~/shared/types/api'
 
-definePageMeta({ middleware: 'auth' })
+/*
+ * `altoCompleto`: la tabla se queda con el alto sobrante y es lo único
+ * que se desplaza.
+ */
+definePageMeta({ middleware: 'auth', altoCompleto: true })
 
 const auth = useAuthStore()
 const {
@@ -24,6 +28,17 @@ const altas = [
   { value: 'todos', label: 'Todas las cuentas' },
   { value: 'activos', label: 'Sólo activas' }
 ]
+
+/**
+ * El estado cuenta como filtro: abrir en «sólo activas» es un recorte
+ * y quien no encuentre a alguien tiene que poder quitarlo de un toque.
+ */
+const filtrada = computed(() => busqueda.value !== '' || incluirInactivos.value)
+
+function limpiarFiltros(): void {
+  busqueda.value = ''
+  incluirInactivos.value = false
+}
 
 const filtroAlta = computed({
   get: () => (incluirInactivos.value ? 'todos' : 'activos'),
@@ -133,7 +148,7 @@ function ultimoAcceso(iso: string | null): string {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-3 md:h-full md:flex md:flex-col md:min-h-0">
     <PaginaTitulo
       titulo="Empleados"
       descripcion="No hay permisos por puesto: todas las cuentas pueden hacer lo mismo. Lo que sí queda es el registro de quién hizo cada cosa."
@@ -168,15 +183,14 @@ function ultimoAcceso(iso: string | null): string {
     <BarraFiltros
       :visibles="visibles.length"
       :total="empleados.length"
-      :filtrada="busqueda !== ''"
-      @limpiar="busqueda = ''"
     >
       <template #buscar>
         <UInput
           v-model="busqueda"
           placeholder="Nombre o correo"
           icon="i-lucide-search"
-          class="w-56"
+          size="lg"
+          class="w-44 2xl:w-56"
         />
       </template>
 
@@ -184,10 +198,24 @@ function ultimoAcceso(iso: string | null): string {
         <FiltroSelect
           v-model="filtroAlta"
           :opciones="altas"
+          tamano="lg"
           etiqueta="Filtrar por estado de la cuenta"
           icono="i-lucide-user-check"
-          ancho="w-52"
+          ancho="w-48 2xl:w-52"
         />
+
+        <UButton
+          size="lg"
+          variant="ghost"
+          color="neutral"
+          icon="i-lucide-filter-x"
+          title="Quitar los filtros"
+          aria-label="Quitar los filtros"
+          :disabled="!filtrada"
+          @click="limpiarFiltros"
+        >
+          <span class="hidden 2xl:inline">Limpiar</span>
+        </UButton>
       </template>
 
       <template #resumen>
@@ -209,105 +237,177 @@ function ultimoAcceso(iso: string | null): string {
 
     <div
       v-else
-      class="space-y-2"
+      class="tarjeta overflow-hidden md:flex-1 md:min-h-0"
     >
-      <div
-        v-for="u in visibles"
-        :key="u.id"
-        class="tarjeta p-3"
-        :class="u.is_active ? '' : 'opacity-60'"
-      >
-        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-          <span class="min-w-0 flex-1">
-            <span class="font-medium">{{ u.name }}</span>
-            <UBadge
-              v-if="u.id === auth.user?.id"
-              color="primary"
-              variant="subtle"
-              size="sm"
-              class="ml-2"
-            >
-              Tú
-            </UBadge>
-            <UBadge
-              v-if="!u.is_active"
-              color="neutral"
-              variant="subtle"
-              size="sm"
-              class="ml-2"
-            >
-              Dado de baja
-            </UBadge>
-            <span class="block text-sm text-beige-600">{{ u.email }}</span>
-            <span class="block text-xs text-beige-600">{{ ultimoAcceso(u.last_login_at) }}</span>
-          </span>
+      <div class="overflow-auto max-h-[60vh] md:max-h-none md:h-full">
+        <table class="w-full text-sm">
+          <thead class="sticky top-0 z-10">
+            <tr class="text-center [&>th]:border-r [&>th]:border-borde [&>th:last-child]:border-r-0">
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde">
+                Empleado
+              </th>
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde hidden lg:table-cell">
+                Correo
+              </th>
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde w-px whitespace-nowrap">
+                PIN
+              </th>
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde w-px whitespace-nowrap hidden lg:table-cell">
+                Último acceso
+              </th>
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde w-px whitespace-nowrap">
+                Acciones
+              </th>
+            </tr>
+          </thead>
 
-          <div class="flex items-center justify-between sm:justify-end gap-2 shrink-0">
-            <template v-if="confirmandoBaja === u.id">
-              <span class="text-sm">¿Darle de baja?</span>
-              <UButton
-                size="sm"
-                variant="outline"
-                color="neutral"
-                @click="confirmandoBaja = null"
-              >
-                Mejor no
-              </UButton>
-              <UButton
-                size="sm"
-                color="error"
-                @click="alDarDeBaja(u)"
-              >
-                Sí, dar de baja
-              </UButton>
-            </template>
+          <tbody>
+            <tr
+              v-for="u in visibles"
+              :key="u.id"
+              class="border-b border-borde-suave last:border-0 transition
+                     [&>td]:border-r [&>td]:border-borde-suave [&>td:last-child]:border-r-0"
+              :class="u.is_active ? '' : 'text-apagado-2'"
+            >
+              <td class="px-3 lg:px-4 py-4 text-center w-1/2 lg:w-1/4 max-w-0">
+                <span class="flex items-center justify-center gap-2 min-w-0">
+                  <span class="font-medium truncate">{{ u.name }}</span>
 
-            <template v-else>
-              <UButton
-                size="sm"
-                variant="outline"
-                color="neutral"
-                icon="i-lucide-pencil"
-                @click="editando = u"
-              >
-                Editar
-              </UButton>
+                  <UBadge
+                    v-if="u.id === auth.user?.id"
+                    color="primary"
+                    variant="subtle"
+                    size="md"
+                    class="shrink-0"
+                  >
+                    Tú
+                  </UBadge>
+                  <UBadge
+                    v-if="!u.is_active"
+                    color="neutral"
+                    variant="subtle"
+                    size="md"
+                    class="shrink-0"
+                  >
+                    Dado de baja
+                  </UBadge>
+                </span>
+
+                <!-- En angosto el correo se mete aquí: su columna se oculta. -->
+                <span class="block truncate text-xs text-apagado lg:hidden">{{ u.email }}</span>
+              </td>
+
+              <td class="px-3 lg:px-4 py-4 text-center w-1/3 max-w-0 truncate text-apagado hidden lg:table-cell">
+                {{ u.email }}
+              </td>
 
               <!--
-                La razón va como texto, no como `title` del botón: en un
-                botón deshabilitado, el `title` sustituye a su nombre
-                accesible y un lector de pantalla anuncia la explicación
-                en lugar de «Dar de baja».
+                Si tiene PIN, nunca cuál.
+
+                Desde que existe el cambio rápido de cajero, una cuenta sin
+                PIN no puede relevar a nadie en el mostrador, y hasta ahora
+                eso se descubría intentándolo con la fila esperando.
               -->
-              <span
-                v-if="u.is_active && u.id === auth.user?.id"
-                class="text-xs text-beige-600 max-w-40 text-right"
-              >
-                Tu propia cuenta la da de baja otro compañero.
-              </span>
+              <td class="px-3 lg:px-4 py-4 text-center w-px whitespace-nowrap">
+                <UBadge
+                  v-if="u.tiene_pin"
+                  color="success"
+                  variant="subtle"
+                  size="md"
+                >
+                  Puesto
+                </UBadge>
+                <UBadge
+                  v-else
+                  color="warning"
+                  variant="subtle"
+                  size="md"
+                >
+                  Sin PIN
+                </UBadge>
+              </td>
 
-              <UButton
-                v-else-if="u.is_active"
-                size="sm"
-                variant="ghost"
-                color="error"
-                @click="confirmandoBaja = u.id"
-              >
-                Dar de baja
-              </UButton>
+              <td class="px-3 lg:px-4 py-4 text-center w-px text-apagado whitespace-nowrap hidden lg:table-cell">
+                {{ ultimoAcceso(u.last_login_at) }}
+              </td>
 
-              <UButton
-                v-else
-                size="sm"
-                variant="ghost"
-                color="neutral"
-                @click="alReactivar(u)"
-              >
-                Reactivar
-              </UButton>
-            </template>
-          </div>
-        </div>
+              <td class="px-3 lg:px-4 py-4 text-center w-px whitespace-nowrap">
+                <template v-if="confirmandoBaja === u.id">
+                  <span class="inline-flex items-center gap-1">
+                    <UButton
+                      size="sm"
+                      variant="outline"
+                      color="neutral"
+                      @click="confirmandoBaja = null"
+                    >
+                      Mejor no
+                    </UButton>
+                    <UButton
+                      size="sm"
+                      color="error"
+                      @click="alDarDeBaja(u)"
+                    >
+                      Sí, dar de baja
+                    </UButton>
+                  </span>
+                </template>
+
+                <template v-else>
+                  <span class="inline-flex items-center gap-1">
+                    <UButton
+                      size="sm"
+                      variant="outline"
+                      color="neutral"
+                      icon="i-lucide-pencil"
+                      title="Editar"
+                      aria-label="Editar"
+                      @click="editando = u"
+                    >
+                      <span class="hidden lg:inline">Editar</span>
+                    </UButton>
+
+                    <!--
+                      La razón va como texto y no como `title` del botón: en
+                      un botón deshabilitado el `title` sustituye a su nombre
+                      accesible, y el lector anunciaría la explicación en
+                      lugar de «Dar de baja».
+                    -->
+                    <span
+                      v-if="u.is_active && u.id === auth.user?.id"
+                      class="text-xs text-apagado"
+                    >Te da de baja otro</span>
+
+                    <UButton
+                      v-else-if="u.is_active"
+                      size="sm"
+                      variant="ghost"
+                      color="error"
+                      icon="i-lucide-user-minus"
+                      title="Dar de baja"
+                      aria-label="Dar de baja"
+                      @click="confirmandoBaja = u.id"
+                    >
+                      <span class="hidden lg:inline">Dar de baja</span>
+                    </UButton>
+
+                    <UButton
+                      v-else
+                      size="sm"
+                      variant="ghost"
+                      color="neutral"
+                      icon="i-lucide-rotate-ccw"
+                      title="Reactivar"
+                      aria-label="Reactivar"
+                      @click="alReactivar(u)"
+                    >
+                      <span class="hidden lg:inline">Reactivar</span>
+                    </UButton>
+                  </span>
+                </template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 

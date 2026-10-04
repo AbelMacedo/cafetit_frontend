@@ -40,12 +40,12 @@ export function useProductAdmin() {
 
     try {
       const [prods, cats, attrs] = await Promise.all([
-        api.get<{ data: Product[] }>('/products', { per_page: 200 }),
+        api.todas<Product>('/products'),
         api.get<{ data: Category[] }>('/categories'),
         api.get<{ data: AtributoProducto[] }>('/product-attributes')
       ])
 
-      productos.value = prods.data
+      productos.value = prods
       categorias.value = cats.data
       atributos.value = attrs.data
     } catch {

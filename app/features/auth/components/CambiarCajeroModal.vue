@@ -104,7 +104,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', alTeclado))
             v-for="i in LARGO"
             :key="i"
             class="size-4 rounded-full transition"
-            :class="i <= pin.length ? 'bg-naranja-500' : 'bg-beige-200'"
+            :class="i <= pin.length ? 'bg-naranja-500' : 'bg-relleno'"
           />
         </div>
 

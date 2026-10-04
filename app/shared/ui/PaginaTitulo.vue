@@ -16,6 +16,14 @@
  * sistema, y está a propósito: sin él el título es una línea de texto
  * más y nada dice dónde empieza la pantalla.
  */
+/**
+ * El slot `resumen` acompaña a la DESCRIPCIÓN, no al título.
+ *
+ * Una cifra al lado del título compite con él: son dos cosas grandes
+ * peleando por el mismo renglón. Un renglón más abajo, junto a la
+ * línea que explica la pantalla, el título se queda solo —que es como
+ * se lee un encabezado— y la cifra sigue arriba del todo.
+ */
 defineProps<{
   titulo: string
   /** Una línea de contexto, cuando el título no basta. */
@@ -27,7 +35,7 @@ defineProps<{
   <div>
     <div class="flex items-start justify-between gap-4">
       <div class="min-w-0">
-        <h1 class="text-2xl font-bold text-cafe-900 dark:text-beige-100 truncate">
+        <h1 class="text-2xl font-bold text-tinta truncate">
           {{ titulo }}
         </h1>
 
@@ -45,11 +53,17 @@ defineProps<{
       </div>
     </div>
 
-    <p
-      v-if="descripcion"
-      class="text-beige-600 mt-3 max-w-2xl"
-    >
-      {{ descripcion }}
-    </p>
+    <div class="mt-3 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+      <p
+        v-if="descripcion"
+        class="text-apagado max-w-2xl"
+      >
+        {{ descripcion }}
+      </p>
+
+      <div class="shrink-0 ms-auto">
+        <slot name="resumen" />
+      </div>
+    </div>
   </div>
 </template>

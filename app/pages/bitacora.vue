@@ -15,11 +15,19 @@ import { useAuditLog } from '~/features/audit/composables/useAuditLog'
  * Durante semanas esa tabla no tuvo pantalla. Escribía, y nadie podía
  * leerla: el contrapeso existía en el diseño y no en el mostrador.
  */
-definePageMeta({ middleware: 'auth' })
+/*
+ * `altoCompleto`: la pantalla ocupa el alto y la lista se queda con el
+ * sobrante, así se desplaza ella y no la página. En una bitácora de
+ * meses es la diferencia entre recorrer los registros y perder de vista
+ * el periodo que se está mirando.
+ */
+definePageMeta({ middleware: 'auth', altoCompleto: true })
 
 const {
-  porDia, total, acciones, desde, hasta, accion, soloDelicadas,
-  filtrada, cargando, error, cargar, cargarAcciones, limpiar
+  porDia, total, acciones, pagina, ultimaPagina, porPagina,
+  desde, hasta, accion, soloDelicadas,
+  filtrada, cargando, error, cargar, cargarAcciones, limpiar, irAHoy,
+  recargarDesdeLaPrimera, irAPagina
 } = useAuditLog()
 
 onMounted(async () => {
@@ -46,7 +54,7 @@ const accionFiltro = computed({
   get: () => accion.value,
   set: (v: string | number) => {
     accion.value = String(v)
-    void cargar()
+    void recargarDesdeLaPrimera()
   }
 })
 
@@ -54,18 +62,29 @@ const alcanceFiltro = computed({
   get: () => (soloDelicadas.value ? 'delicadas' : 'todo'),
   set: (v: string | number) => {
     soloDelicadas.value = v === 'delicadas'
-    void cargar()
+    void recargarDesdeLaPrimera()
   }
 })
 
 async function limpiarFiltros() {
   limpiar()
-  await cargar()
+  await recargarDesdeLaPrimera()
 }
+
+async function verHoy() {
+  irAHoy()
+  await recargarDesdeLaPrimera()
+}
+
+/** El renglón que se está viendo, para situarse entre páginas. */
+const rango = computed(() => {
+  const primero = (pagina.value - 1) * porPagina + 1
+  return { primero, ultimo: Math.min(pagina.value * porPagina, total.value) }
+})
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-3 md:h-full md:flex md:flex-col md:min-h-0">
     <PaginaTitulo
       titulo="Bitácora"
       descripcion="Quién hizo qué y cuándo. Los registros no se pueden modificar ni borrar, ni siquiera desde aquí."
@@ -78,47 +97,83 @@ async function limpiarFiltros() {
       :title="error"
     />
 
+    <!--
+      Las dos iguales: filtrar rehace la consulta, así que un «X de Y»
+      distinto sólo podría venir de la página, y eso lo dicen los
+      controles de abajo.
+    -->
     <BarraFiltros
       :visibles="total"
       :total="total"
-      :filtrada="filtrada"
-      @limpiar="limpiarFiltros"
     >
       <template #filtros>
         <UInput
           v-model="desde"
           type="date"
-          size="sm"
+          size="lg"
           aria-label="Desde"
-          @change="cargar"
+          @change="recargarDesdeLaPrimera"
         />
-        <span class="text-sm text-beige-600">a</span>
+        <span class="text-sm text-apagado">a</span>
         <UInput
           v-model="hasta"
           type="date"
-          size="sm"
+          size="lg"
           aria-label="Hasta"
-          @change="cargar"
+          @change="recargarDesdeLaPrimera"
         />
+
+        <UButton
+          size="lg"
+          variant="outline"
+          color="neutral"
+          icon="i-lucide-calendar-days"
+          title="Ver sólo lo de hoy"
+          aria-label="Ver sólo lo de hoy"
+          @click="verHoy"
+        >
+          <span class="hidden 2xl:inline">Hoy</span>
+        </UButton>
 
         <FiltroSelect
           v-model="alcanceFiltro"
           :opciones="opcionesAlcance"
+          tamano="lg"
           etiqueta="Qué mostrar"
           icono="i-lucide-shield-alert"
-          ancho="w-56"
+          ancho="w-48 2xl:w-56"
         />
 
         <FiltroSelect
           v-model="accionFiltro"
           :opciones="opcionesAccion"
+          tamano="lg"
           etiqueta="Filtrar por acción"
           icono="i-lucide-list-filter"
-          ancho="w-72"
+          ancho="w-56 2xl:w-72"
         />
+
+        <!--
+          Quitar los filtros vive aquí, con ellos, y no como enlace
+          debajo del contador. Siempre presente y deshabilitado cuando no
+          hay nada que quitar: un botón que brota mueve de sitio a los de
+          al lado justo cuando el dedo va bajando.
+        -->
+        <UButton
+          size="lg"
+          variant="ghost"
+          color="neutral"
+          icon="i-lucide-filter-x"
+          title="Quitar los filtros"
+          aria-label="Quitar los filtros"
+          :disabled="!filtrada"
+          @click="limpiarFiltros"
+        >
+          <span class="hidden 2xl:inline">Limpiar</span>
+        </UButton>
       </template>
 
-      <template #resumen>
+      <template #nota>
         Salidas de efectivo, cancelaciones y cambios de precio van marcados.
       </template>
     </BarraFiltros>
@@ -150,14 +205,14 @@ async function limpiarFiltros() {
 
     <div
       v-else
-      class="space-y-6"
+      class="space-y-6 md:flex-1 md:min-h-0 md:overflow-auto"
     >
       <section
         v-for="grupo in porDia"
         :key="grupo.dia"
         class="space-y-2"
       >
-        <h2 class="text-sm font-semibold text-beige-600 capitalize sticky top-0 bg-beige-100 py-1">
+        <h2 class="text-sm font-semibold text-apagado first-letter:uppercase sticky top-0 z-10 bg-lienzo py-1">
           {{ grupo.dia }}
         </h2>
 
@@ -167,6 +222,48 @@ async function limpiarFiltros() {
           :registro="r"
         />
       </section>
+    </div>
+
+    <!--
+      Las páginas, fuera de la caja que se desplaza: dentro habría que
+      bajar cien registros para encontrarlas. Sólo salen si hay más de
+      una.
+    -->
+    <div
+      v-if="ultimaPagina > 1"
+      class="flex flex-wrap items-center justify-between gap-2 shrink-0"
+    >
+      <p class="text-xs text-apagado tabular-nums">
+        {{ rango.primero }}–{{ rango.ultimo }} de {{ total }}
+      </p>
+
+      <div class="flex items-center gap-2">
+        <UButton
+          size="lg"
+          variant="outline"
+          color="neutral"
+          icon="i-lucide-chevron-left"
+          title="Página anterior"
+          aria-label="Página anterior"
+          :disabled="pagina === 1 || cargando"
+          @click="irAPagina(pagina - 1)"
+        />
+
+        <span class="text-sm text-apagado tabular-nums">
+          {{ pagina }} de {{ ultimaPagina }}
+        </span>
+
+        <UButton
+          size="lg"
+          variant="outline"
+          color="neutral"
+          icon="i-lucide-chevron-right"
+          title="Página siguiente"
+          aria-label="Página siguiente"
+          :disabled="pagina === ultimaPagina || cargando"
+          @click="irAPagina(pagina + 1)"
+        />
+      </div>
     </div>
   </div>
 </template>

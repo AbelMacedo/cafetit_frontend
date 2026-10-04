@@ -4,7 +4,11 @@ import { type CategoriaAGuardar, useCategories } from '~/features/catalog/compos
 import { ApiError } from '~/shared/composables/useApi'
 import type { Category } from '~/shared/types/api'
 
-definePageMeta({ middleware: 'auth' })
+/*
+ * `altoCompleto`: la tabla se queda con el alto sobrante y es lo único
+ * que se desplaza.
+ */
+definePageMeta({ middleware: 'auth', altoCompleto: true })
 
 const toast = useToast()
 
@@ -125,6 +129,20 @@ const estados = [
   { value: 'activas', label: 'Sólo activas' }
 ]
 
+/**
+ * El estado cuenta como filtro.
+ *
+ * Abrir en «sólo activas» es cómodo, pero es un recorte: quien no
+ * encuentre una categoría tiene que poder quitarlo de un toque sin
+ * adivinar qué control la esconde.
+ */
+const filtrada = computed(() => busqueda.value !== '' || incluirInactivas.value)
+
+function limpiarFiltros(): void {
+  busqueda.value = ''
+  incluirInactivas.value = false
+}
+
 const filtroEstado = computed({
   get: () => (incluirInactivas.value ? 'todas' : 'activas'),
   set: (v: string | number) => {
@@ -134,7 +152,7 @@ const filtroEstado = computed({
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-3 md:h-full md:flex md:flex-col md:min-h-0">
     <PaginaTitulo
       titulo="Categorías"
       descripcion="Agrupan el catálogo y son el filtro del mostrador. Un producto pertenece a una."
@@ -160,15 +178,14 @@ const filtroEstado = computed({
     <BarraFiltros
       :visibles="visibles.length"
       :total="categorias.length"
-      :filtrada="busqueda !== ''"
-      @limpiar="busqueda = ''"
     >
       <template #buscar>
         <UInput
           v-model="busqueda"
           placeholder="Buscar categoría..."
           icon="i-lucide-search"
-          class="w-56"
+          size="lg"
+          class="w-44 2xl:w-56"
         />
       </template>
 
@@ -176,10 +193,24 @@ const filtroEstado = computed({
         <FiltroSelect
           v-model="filtroEstado"
           :opciones="estados"
+          tamano="lg"
           etiqueta="Filtrar por estado"
           icono="i-lucide-eye"
           ancho="w-44"
         />
+
+        <UButton
+          size="lg"
+          variant="ghost"
+          color="neutral"
+          icon="i-lucide-filter-x"
+          title="Quitar los filtros"
+          aria-label="Quitar los filtros"
+          :disabled="!filtrada"
+          @click="limpiarFiltros"
+        >
+          <span class="hidden 2xl:inline">Limpiar</span>
+        </UButton>
       </template>
 
       <template #resumen>
@@ -212,7 +243,8 @@ const filtroEstado = computed({
           v-else
           variant="outline"
           color="neutral"
-          @click="busqueda = ''"
+          icon="i-lucide-filter-x"
+          @click="limpiarFiltros"
         >
           Quitar filtros
         </UButton>
@@ -221,82 +253,140 @@ const filtroEstado = computed({
 
     <div
       v-else
-      class="space-y-2"
+      class="tarjeta overflow-hidden md:flex-1 md:min-h-0"
     >
-      <div
-        v-for="c in visibles"
-        :key="c.id"
-        class="tarjeta p-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3"
-        :class="c.is_active ? '' : 'opacity-60'"
-      >
-        <!-- El color a la izquierda: es como se reconoce la familia -->
-        <span
-          class="size-9 shrink-0 rounded-lg flex items-center justify-center"
-          :style="c.color ? { backgroundColor: c.color } : undefined"
-          :class="c.color ? '' : 'bg-beige-200'"
-          aria-hidden="true"
-        >
-          <UIcon
-            name="i-lucide-tag"
-            class="size-4"
-            :class="c.color ? 'text-white/90' : 'text-beige-500'"
-          />
-        </span>
+      <div class="overflow-auto max-h-[60vh] md:max-h-none md:h-full">
+        <table class="w-full text-sm">
+          <thead class="sticky top-0 z-10">
+            <tr class="text-center [&>th]:border-r [&>th]:border-borde [&>th:last-child]:border-r-0">
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde w-px">
+                Logo
+              </th>
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde">
+                Categoría
+              </th>
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde hidden lg:table-cell">
+                Descripción
+              </th>
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde">
+                Productos
+              </th>
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde">
+                Acciones
+              </th>
+            </tr>
+          </thead>
 
-        <div class="min-w-0 flex-1">
-          <div class="flex flex-wrap items-center gap-2">
-            <p class="font-medium leading-tight">
-              {{ c.name }}
-            </p>
-            <UBadge
-              v-if="!c.is_active"
-              color="neutral"
-              variant="subtle"
-              size="sm"
+          <tbody>
+            <tr
+              v-for="c in visibles"
+              :key="c.id"
+              class="border-b border-borde-suave last:border-0 transition
+                     [&>td]:border-r [&>td]:border-borde-suave [&>td:last-child]:border-r-0"
+              :class="c.is_active ? '' : 'text-apagado-2'"
             >
-              Retirada
-            </UBadge>
-          </div>
-          <p class="text-xs text-beige-600">
-            <template v-if="c.description">
-              {{ c.description }} ·
-            </template>
-            {{ c.products_count ?? 0 }}
-            {{ (c.products_count ?? 0) === 1 ? 'producto' : 'productos' }}
-          </p>
-        </div>
+              <!--
+                El logo en su propia columna: así los cuadritos forman una
+                línea recta y se reconoce la familia recorriendo el borde,
+                en lugar de buscarlos a distintas alturas del nombre.
 
-        <div class="flex items-center justify-between sm:justify-end gap-2 shrink-0">
-          <UButton
-            size="xs"
-            variant="outline"
-            color="neutral"
-            icon="i-lucide-pencil"
-            @click="editando = c"
-          >
-            Editar
-          </UButton>
+                `w-px` con `whitespace-nowrap` es el truco de tabla para
+                «lo mínimo que quepa»: la columna no roba ancho al nombre.
+              -->
+              <td class="px-3 lg:px-4 py-4 w-px whitespace-nowrap">
+                <span
+                  class="size-8 rounded-lg flex items-center justify-center mx-auto"
+                  :style="c.color ? { backgroundColor: c.color } : undefined"
+                  :class="c.color ? '' : 'bg-relleno'"
+                  aria-hidden="true"
+                >
+                  <!--
+                    El logo elegido, o la etiqueta genérica si no tiene.
+                    El nombre completo lo arma el servidor: aquí no se
+                    concatena el prefijo de la librería de iconos.
+                  -->
+                  <UIcon
+                    :name="c.icon_componente ?? 'i-lucide-tag'"
+                    class="size-4"
+                    :class="c.color ? 'text-white/90' : 'text-apagado-2'"
+                  />
+                </span>
+              </td>
 
-          <UButton
-            v-if="c.is_active"
-            size="xs"
-            variant="ghost"
-            color="neutral"
-            @click="retirando = c"
-          >
-            Retirar
-          </UButton>
+              <td class="px-3 lg:px-4 py-4 w-1/3 max-w-0">
+                <span class="flex items-center justify-center gap-2 min-w-0">
+                  <span class="truncate font-medium">{{ c.name }}</span>
 
-          <UButton
-            v-else
-            size="xs"
-            variant="ghost"
-            color="neutral"
-            @click="alReactivar(c)"
-          >
-            Reactivar
-          </UButton>
-        </div>
+                  <UBadge
+                    v-if="!c.is_active"
+                    color="neutral"
+                    variant="subtle"
+                    size="md"
+                    class="shrink-0"
+                  >
+                    Retirada
+                  </UBadge>
+                </span>
+
+                <!-- En angosto la descripción se mete aquí: su columna se oculta. -->
+                <span
+                  v-if="c.description"
+                  class="block truncate text-xs text-apagado lg:hidden"
+                >{{ c.description }}</span>
+              </td>
+
+              <td class="px-3 lg:px-4 py-4 text-center w-1/3 max-w-0 truncate text-apagado hidden lg:table-cell">
+                {{ c.description ?? '—' }}
+              </td>
+
+              <td class="px-3 lg:px-4 py-4 text-center tabular-nums whitespace-nowrap">
+                {{ c.products_count ?? 0 }}
+              </td>
+
+              <td class="px-3 lg:px-4 py-4 text-center whitespace-nowrap">
+                <span class="inline-flex items-center gap-1">
+                  <UButton
+                    size="sm"
+                    variant="outline"
+                    color="neutral"
+                    icon="i-lucide-pencil"
+                    title="Editar"
+                    aria-label="Editar"
+                    @click="editando = c"
+                  >
+                    <span class="hidden lg:inline">Editar</span>
+                  </UButton>
+
+                  <UButton
+                    v-if="c.is_active"
+                    size="sm"
+                    variant="ghost"
+                    color="neutral"
+                    icon="i-lucide-eye-off"
+                    title="Retirar del mostrador"
+                    aria-label="Retirar del mostrador"
+                    @click="retirando = c"
+                  >
+                    <span class="hidden lg:inline">Retirar</span>
+                  </UButton>
+
+                  <UButton
+                    v-else
+                    size="sm"
+                    variant="ghost"
+                    color="neutral"
+                    icon="i-lucide-rotate-ccw"
+                    title="Reactivar"
+                    aria-label="Reactivar"
+                    @click="alReactivar(c)"
+                  >
+                    <span class="hidden lg:inline">Reactivar</span>
+                  </UButton>
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 

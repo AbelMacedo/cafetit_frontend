@@ -56,6 +56,41 @@
   --color-beige-950: #1C1815;
 }
 
+
+/*
+ * Papeles, no colores.
+ *
+ * Durante meses cada pantalla escribía el color a mano: `bg-white` para
+ * una tarjeta, `text-beige-600` para un texto secundario, `border-beige-200`
+ * para un borde. Eso funciona mientras sólo haya un tema. Al intentar el
+ * oscuro aparecieron trescientas setenta decisiones repartidas por treinta
+ * y nueve archivos, y media docena de `dark:` sueltos puestos a destiempo
+ * que ya no coincidían entre sí.
+ *
+ * Aquí se nombra el PAPEL que cumple cada color —lienzo, superficie,
+ * tinta, apagado, borde— y abajo se dice cuánto vale cada papel en claro
+ * y en oscuro. Una pantalla nueva pide `text-apagado` y acierta en los
+ * dos temas sin saber que el oscuro existe.
+ */
+@theme static {
+  /* Superficies, de atrás hacia adelante */
+  --color-lienzo: #F5F1EA;        /* el fondo sobre el que todo se apoya */
+  --color-superficie: #FFFFFF;    /* tarjetas, tablas, modales */
+  --color-hundido: #FBF9F6;       /* paneles embutidos dentro de una tarjeta */
+  --color-relleno: #EAE3D8;       /* rellenos suaves: fichas, barras */
+
+  /* Texto */
+  --color-tinta: #58362B;         /* lo que se lee primero */
+  --color-tinta-2: #804C37;       /* lo mismo, con menos peso */
+  --color-apagado: #7D6F5E;       /* secundario: rótulos, ayudas */
+  --color-apagado-2: #9A8B78;     /* terciario: marcas de agua */
+
+  /* Bordes */
+  --color-borde: #EAE3D8;         /* el normal */
+  --color-borde-suave: #F5F1EA;   /* separadores dentro de una lista */
+  --color-borde-marcado: #D9CFC0; /* cuando hace falta que se vea */
+}
+
 /*
  * Elevación cálida.
  *
@@ -76,9 +111,9 @@
  * el relleno que haga falta.
  */
 @utility tarjeta {
-  background: #fff;
+  background: var(--color-superficie);
   border-radius: 1rem;
-  border: 1px solid color-mix(in srgb, var(--color-beige-200) 75%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-borde) 75%, transparent);
   box-shadow: var(--shadow-suave);
 }
 
@@ -112,4 +147,57 @@
     min-height: 3rem;
     min-width: 3rem;
   }
+}
+
+/*
+ * Lo que pinta el navegador por su cuenta.
+ *
+ * El selector de fecha, la barra de desplazamiento y el cursor de texto
+ * los dibuja el sistema, no la hoja de estilos. Hay que decirle en qué
+ * tema está o los pinta al revés: con el sistema operativo en oscuro y
+ * el POS en claro salen dos recuadros negros de calendario en /ventas.
+ */
+:root {
+  color-scheme: light;
+}
+
+/*
+ * (El oscuro va al final del archivo a propósito: ver dentro.)
+ */
+/*
+ * El oscuro.
+ *
+ * No es el claro invertido. Los fondos van al café muy quemado en vez de
+ * al negro —un negro puro bajo una paleta cálida se ve como un agujero— y
+ * la tinta no llega al blanco: un #FFF sobre casi negro vibra y cansa en
+ * una pantalla que alguien mira ocho horas seguidas.
+ *
+ * Las superficies ACLARAN según se acercan: lienzo, luego tarjeta, luego
+ * lo que flota. En claro el orden es el contrario, y respetarlo es lo que
+ * hace que una tarjeta siga pareciendo una tarjeta.
+ */
+.dark {
+  color-scheme: dark;
+
+  --color-lienzo: #17120F;
+  --color-superficie: #211B17;
+  --color-hundido: #1B1613;
+  --color-relleno: #2E2621;
+
+  --color-tinta: #F3EAE0;
+  --color-tinta-2: #E6D3C0;
+  --color-apagado: #B8AB99;
+  --color-apagado-2: #9A8B78;
+
+  --color-borde: #3A302A;
+  --color-borde-suave: #2A2320;
+  --color-borde-marcado: #4A3E36;
+
+  /*
+   | Las sombras no se ven sobre un fondo oscuro: no hay luz que bloquear.
+   | Se suben de opacidad para que la elevación siga existiendo, aunque lo
+   | que de verdad separa las capas ahí es el escalón de luminosidad.
+   */
+  --shadow-suave: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px -4px rgba(0, 0, 0, 0.45);
+  --shadow-alzada: 0 2px 6px rgba(0, 0, 0, 0.4), 0 12px 30px -8px rgba(0, 0, 0, 0.6);
 }

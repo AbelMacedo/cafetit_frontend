@@ -29,7 +29,11 @@ function limpiarFiltros() {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-3">
+    <!--
+      `space-y-3` y no 6: son bloques encadenados —el filtro manda sobre
+      la cuadrícula— y tanto hueco los hacía parecer independientes.
+    -->
     <PaginaTitulo
       titulo="Catálogo"
       descripcion="Lo que hay a la venta. Para cobrar, ve a Vender."
@@ -52,16 +56,14 @@ function limpiarFiltros() {
       :title="error"
     />
 
-    <BarraFiltros
-      :filtrada="filtrada"
-      @limpiar="limpiarFiltros"
-    >
+    <BarraFiltros>
       <template #buscar>
         <UInput
           v-model="busqueda"
           placeholder="Buscar producto..."
           icon="i-lucide-search"
-          class="w-64"
+          size="lg"
+          class="w-44 2xl:w-64"
         />
       </template>
 
@@ -69,7 +71,27 @@ function limpiarFiltros() {
         <SelectorCategoria
           v-model="categoriaActiva"
           :categorias="categorias"
+          tamano="lg"
+          ancho="w-52 2xl:w-56"
         />
+
+        <!--
+          Limpiar pierde el rótulo antes de que la fila se parta: el
+          icono dice lo mismo en la mitad de sitio y el nombre sigue en
+          el `title` y para el lector de pantalla.
+        -->
+        <UButton
+          size="lg"
+          variant="ghost"
+          color="neutral"
+          icon="i-lucide-filter-x"
+          title="Quitar los filtros"
+          aria-label="Quitar los filtros"
+          :disabled="!filtrada"
+          @click="limpiarFiltros"
+        >
+          <span class="hidden 2xl:inline">Limpiar</span>
+        </UButton>
       </template>
     </BarraFiltros>
 
@@ -132,18 +154,18 @@ function limpiarFiltros() {
           <p class="font-medium leading-tight">
             {{ p.name }}
           </p>
-          <p class="text-xs text-beige-600">
+          <p class="text-xs text-apagado">
             {{ p.category?.name }}
           </p>
 
           <MontoDinero
             :valor="precioDesde(p.variants)"
-            class="text-lg font-semibold text-cafe-800 dark:text-beige-100 block"
+            class="text-lg font-semibold text-tinta block"
           />
 
           <p
             v-if="(p.variants?.length ?? 0) > 1"
-            class="text-xs text-beige-600"
+            class="text-xs text-apagado"
           >
             {{ p.variants?.length }} variantes
           </p>

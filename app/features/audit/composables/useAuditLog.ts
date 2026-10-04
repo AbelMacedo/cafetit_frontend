@@ -19,11 +19,27 @@ export function useAuditLog() {
   const registros = ref<RegistroBitacora[]>([])
   const acciones = ref<AccionBitacora[]>([])
   const total = ref(0)
+  const pagina = ref(1)
+  const ultimaPagina = ref(1)
 
   const cargando = ref(false)
   const error = ref<string | null>(null)
 
-  const desde = ref(haceDias(7))
+  /*
+   | Cien por página.
+   |
+   | Durante un tiempo esto fue un tope sin salida: se pedían las 100 más
+   | recientes y las demás no se alcanzaban, mientras el contador leía el
+   | total del servidor y decía «350 resultados» sobre 100 filas. En una
+   | bitácora, una línea que no se ve es una línea que no existe para
+   | quien vino a buscarla.
+   */
+  const POR_PAGINA = 100
+
+  /** Cómo abre la pantalla; a esto vuelve «Limpiar». */
+  const DIAS_INICIALES = 7
+
+  const desde = ref(haceDias(DIAS_INICIALES))
   const hasta = ref(haceDias(0))
   /*
    * El «todas» es un valor, no la cadena vacía.
@@ -44,7 +60,17 @@ export function useAuditLog() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   }
 
-  const filtrada = computed(() => accion.value !== 'todas' || soloDelicadas.value)
+  /*
+   | Filtrada es «no está como abre», y las fechas cuentan: dejarlas fuera
+   | hacía que «Limpiar» se viera apagado con un periodo puesto a mano, sin
+   | forma de volver.
+   */
+  const filtrada = computed(() =>
+    accion.value !== 'todas'
+    || !soloDelicadas.value
+    || desde.value !== haceDias(DIAS_INICIALES)
+    || hasta.value !== haceDias(0)
+  )
 
   /**
    * Los registros agrupados por día, que es como se leen.
@@ -79,11 +105,13 @@ export function useAuditLog() {
         hasta: hasta.value,
         accion: accion.value === 'todas' ? undefined : accion.value,
         solo_delicadas: soloDelicadas.value ? 1 : undefined,
-        per_page: 100
+        per_page: POR_PAGINA,
+        page: pagina.value
       })
 
       registros.value = r.data
       total.value = r.meta?.total ?? r.data.length
+      ultimaPagina.value = r.meta?.last_page ?? 1
     } catch {
       error.value = 'No se pudo cargar la bitácora.'
     } finally {
@@ -104,15 +132,48 @@ export function useAuditLog() {
     }
   }
 
+  /** Deja la pantalla como abre: últimos siete días y sólo lo delicado. */
   function limpiar(): void {
     accion.value = 'todas'
-    soloDelicadas.value = false
+    soloDelicadas.value = true
+    desde.value = haceDias(DIAS_INICIALES)
+    hasta.value = haceDias(0)
+  }
+
+  /**
+   * Lo de hoy.
+   *
+   * Aquí se entra casi siempre por algo que acaba de pasar —un corte que
+   * no cuadró, un precio raro— y poner dos fechas a mano para eso son
+   * cuatro toques en una tableta.
+   */
+  function irAHoy(): void {
+    desde.value = haceDias(0)
+    hasta.value = haceDias(0)
+  }
+
+  /**
+   * Cualquier filtro devuelve a la primera página.
+   *
+   * Acotar estando en la página 3 dejaba la lista vacía con los filtros
+   * puestos: parecía que no había pasado nada en ese periodo.
+   */
+  async function recargarDesdeLaPrimera(): Promise<void> {
+    pagina.value = 1
+    await cargar()
+  }
+
+  async function irAPagina(n: number): Promise<void> {
+    pagina.value = Math.min(Math.max(1, n), ultimaPagina.value)
+    await cargar()
   }
 
   return {
     registros, acciones, total, porDia,
+    pagina, ultimaPagina, porPagina: POR_PAGINA,
     desde, hasta, accion, soloDelicadas,
     filtrada, cargando, error,
-    cargar, cargarAcciones, limpiar
+    cargar, cargarAcciones, limpiar, irAHoy,
+    recargarDesdeLaPrimera, irAPagina
   }
 }

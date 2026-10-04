@@ -84,7 +84,7 @@ function formatear(clave: string, valor: unknown): string | null {
         class="size-9 rounded-xl flex items-center justify-center shrink-0"
         :class="registro.delicada
           ? 'bg-naranja-100 text-naranja-700'
-          : 'bg-beige-100 text-cafe-600'"
+          : 'bg-lienzo text-tinta-2'"
       >
         <UIcon
           :name="icono"
@@ -94,18 +94,18 @@ function formatear(clave: string, valor: unknown): string | null {
 
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <span class="font-medium text-cafe-900">{{ registro.accion_texto }}</span>
-          <span class="text-xs tabular-nums text-beige-600">{{ hora }}</span>
+          <span class="font-medium text-tinta">{{ registro.accion_texto }}</span>
+          <span class="text-xs tabular-nums text-apagado">{{ hora }}</span>
         </div>
 
         <p
           v-if="registro.descripcion"
-          class="text-sm text-cafe-700 mt-0.5 break-words"
+          class="text-sm text-tinta-2 mt-0.5 break-words"
         >
           {{ registro.descripcion }}
         </p>
 
-        <p class="text-xs text-beige-600 mt-1">
+        <p class="text-xs text-apagado mt-1">
           <!--
             Un hecho sin nombre es media bitácora. Cuando falta, es que lo
             hizo un comando programado, y eso también se dice.
@@ -129,24 +129,24 @@ function formatear(clave: string, valor: unknown): string | null {
 
           <dl
             v-if="abierto"
-            class="mt-2 rounded-lg bg-beige-50 p-3 space-y-1.5"
+            class="mt-2 rounded-lg bg-hundido p-3 space-y-1.5"
           >
             <div
               v-for="d in detalle"
               :key="d.clave"
               class="flex flex-wrap items-baseline gap-x-2 text-sm"
             >
-              <dt class="text-beige-600 capitalize w-40 shrink-0">
+              <dt class="text-apagado capitalize w-40 shrink-0">
                 {{ d.clave }}
               </dt>
 
               <dd class="min-w-0 break-words">
                 <!-- Sin «antes» no hubo cambio: es un dato del hecho. -->
                 <template v-if="d.antes !== null && d.antes !== d.despues">
-                  <span class="line-through text-beige-500">{{ d.antes }}</span>
-                  <span class="mx-1 text-beige-500">→</span>
+                  <span class="line-through text-apagado-2">{{ d.antes }}</span>
+                  <span class="mx-1 text-apagado-2">→</span>
                 </template>
-                <span class="text-cafe-900">{{ d.despues ?? d.antes ?? '—' }}</span>
+                <span class="text-tinta">{{ d.despues ?? d.antes ?? '—' }}</span>
               </dd>
             </div>
           </dl>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CategoriaAGuardar } from '~/features/catalog/composables/useCategories'
-import type { Category } from '~/shared/types/api'
+import { useApi } from '~/shared/composables/useApi'
+import type { Category, LogoCategoria } from '~/shared/types/api'
 
 /**
  * Alta y edición de una categoría.
@@ -30,6 +31,26 @@ const nombre = ref(props.categoria?.name ?? '')
 const descripcion = ref(props.categoria?.description ?? '')
 const color = ref(props.categoria?.color ?? null)
 const orden = ref(props.categoria?.sort_order ?? 0)
+const logo = ref(props.categoria?.icon ?? null)
+
+/**
+ * El catálogo de logos lo manda el servidor.
+ *
+ * Mantener la lista aquí significaría dos copias que se editan por
+ * separado, y la que se queda atrás es siempre la del frontend. Si la
+ * petición falla, el selector queda vacío y la categoría se guarda sin
+ * logo: es un campo opcional, no vale la pena bloquear el alta por él.
+ */
+const logos = ref<LogoCategoria[]>([])
+
+onMounted(async () => {
+  try {
+    const r = await useApi().get<{ data: LogoCategoria[] }>('/categories/icons')
+    logos.value = r.data
+  } catch {
+    logos.value = []
+  }
+})
 
 /**
  * Paleta acotada a propósito.
@@ -58,6 +79,7 @@ function guardar() {
     name: nombre.value.trim(),
     description: descripcion.value.trim() || null,
     color: color.value,
+    icon: logo.value,
     sort_order: orden.value
   }, props.categoria?.id)
 }
@@ -106,7 +128,7 @@ function guardar() {
               type="button"
               class="size-9 rounded-full border-2 transition"
               :class="color === c.valor
-                ? 'border-cafe-800 scale-110'
+                ? 'border-tinta scale-110'
                 : 'border-transparent hover:scale-105'"
               :style="{ backgroundColor: c.valor }"
               :aria-label="c.nombre"
@@ -122,6 +144,49 @@ function guardar() {
               @click="color = null"
             >
               Sin color
+            </UButton>
+          </div>
+        </UFormField>
+
+        <UFormField
+          v-if="logos.length > 0"
+          label="Logo"
+          help="Aparece junto al nombre y en el filtro del mostrador."
+          :error="errores.icon"
+        >
+          <!--
+            Los logos se eligen viéndolos, no por nombre: un desplegable
+            con «croissant» obliga a imaginarse el dibujo. Son quince,
+            así que caben todos a la vista.
+          -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              v-for="l in logos"
+              :key="l.valor"
+              type="button"
+              class="size-10 rounded-xl border-2 flex items-center justify-center transition toque"
+              :class="logo === l.valor
+                ? 'border-naranja-500 bg-naranja-50 dark:bg-naranja-950 text-tinta'
+                : 'border-borde text-tinta-2 hover:border-borde-marcado'"
+              :aria-label="l.texto"
+              :aria-pressed="logo === l.valor"
+              :title="l.texto"
+              @click="logo = l.valor"
+            >
+              <UIcon
+                :name="l.componente"
+                class="size-5"
+              />
+            </button>
+
+            <UButton
+              v-if="logo !== null"
+              size="xs"
+              variant="ghost"
+              color="neutral"
+              @click="logo = null"
+            >
+              Sin logo
             </UButton>
           </div>
         </UFormField>

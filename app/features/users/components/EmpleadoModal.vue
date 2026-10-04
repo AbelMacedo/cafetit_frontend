@@ -156,7 +156,7 @@ function guardar() {
           />
         </UFormField>
 
-        <div class="border-t border-beige-200 dark:border-beige-800 pt-4 space-y-4">
+        <div class="border-t border-borde pt-4 space-y-4">
           <UFormField
             v-if="cambiaContrasena && esUnoMismo"
             label="Tu contraseña actual"

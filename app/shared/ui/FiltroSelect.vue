@@ -20,6 +20,15 @@
 export interface OpcionFiltro {
   label: string
   value: string | number
+
+  /**
+   * Icono propio de la opción, cuando lo tiene.
+   *
+   * Las categorías llevan logo, y en el mostrador se reconocen antes
+   * por el dibujo que por el nombre. El icono del control —el de la
+   * izquierda— sigue siendo el del filtro.
+   */
+  icon?: string
 }
 
 const props = defineProps<{
@@ -29,6 +38,17 @@ const props = defineProps<{
   etiqueta: string
   icono?: string
   ancho?: string
+
+  /**
+   * El alto del control.
+   *
+   * Por omisión el de Nuxt UI, que es el que tienen hoy las pantallas
+   * de gestión. En el mostrador se sube a `lg`: ahí se toca de pie,
+   * con el dedo y al lado de tarjetas grandes, y el tamaño normal se
+   * ve diminuto. Se pide pantalla por pantalla en vez de cambiarlo de
+   * golpe, para poder mirarlas una por una.
+   */
+  tamano?: 'sm' | 'md' | 'lg' | 'xl'
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [valor: string | number] }>()
@@ -43,6 +63,7 @@ const seleccion = computed({
   <USelect
     v-model="seleccion"
     :items="opciones"
+    :size="tamano"
     :icon="icono ?? 'i-lucide-filter'"
     :aria-label="etiqueta"
     :title="etiqueta"

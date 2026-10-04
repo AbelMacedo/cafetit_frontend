@@ -15,7 +15,7 @@ const { avisos, sinLeer, urgentes, atender, atenderTodo } = useNotifications()
 const colorPorSeveridad: Record<SeveridadAviso, string> = {
   critical: 'text-error-600 dark:text-error-400',
   warning: 'text-warning-600 dark:text-warning-400',
-  info: 'text-beige-500'
+  info: 'text-apagado-2'
 }
 
 const iconoPorSeveridad: Record<SeveridadAviso, string> = {
@@ -80,7 +80,7 @@ function haceCuanto(iso: string | null): string {
 
     <template #content>
       <div class="w-80 max-w-[calc(100vw-2rem)]">
-        <div class="flex items-baseline justify-between gap-2 px-3 py-2 border-b border-beige-200 dark:border-beige-800">
+        <div class="flex items-baseline justify-between gap-2 px-3 py-2 border-b border-borde">
           <span class="font-medium text-sm">Avisos</span>
 
           <UButton
@@ -96,14 +96,14 @@ function haceCuanto(iso: string | null): string {
 
         <p
           v-if="avisos.length === 0"
-          class="text-sm text-beige-600 px-3 py-8 text-center"
+          class="text-sm text-apagado px-3 py-8 text-center"
         >
           Nada pendiente.
         </p>
 
         <div
           v-else
-          class="max-h-96 overflow-y-auto divide-y divide-beige-100 dark:divide-beige-800"
+          class="max-h-96 overflow-y-auto divide-y divide-borde-suave"
         >
           <div
             v-for="a in avisos"
@@ -124,9 +124,9 @@ function haceCuanto(iso: string | null): string {
               <span class="block text-sm font-medium leading-snug">{{ a.titulo }}</span>
               <span
                 v-if="a.cuerpo"
-                class="block text-xs text-beige-600 leading-snug mt-0.5"
+                class="block text-xs text-apagado leading-snug mt-0.5"
               >{{ a.cuerpo }}</span>
-              <span class="block text-xs text-beige-500 mt-0.5">{{ haceCuanto(a.creada_en) }}</span>
+              <span class="block text-xs text-apagado-2 mt-0.5">{{ haceCuanto(a.creada_en) }}</span>
             </button>
 
             <UButton

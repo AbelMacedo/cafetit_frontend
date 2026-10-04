@@ -37,7 +37,7 @@ const emit = defineEmits<{ limpiar: [] }>()
     <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
       <p
         v-if="total !== undefined && visibles !== undefined"
-        class="text-xs text-beige-600 flex items-center gap-2"
+        class="text-xs text-apagado flex items-center gap-2"
       >
         <span v-if="visibles === total">
           {{ total }} {{ total === 1 ? 'resultado' : 'resultados' }}
@@ -56,10 +56,23 @@ const emit = defineEmits<{ limpiar: [] }>()
         >
           Quitar filtros
         </UButton>
+
+        <!--
+          Una aclaración sobre la lista misma —qué va marcado, qué se
+          quedó fuera— va pegada al recuento. El slot `resumen` es para
+          una cifra del conjunto, y en la esquina opuesta una frase acaba
+          a un palmo de lo que explica.
+        -->
+        <span
+          v-if="$slots.nota"
+          class="text-apagado-2"
+        >
+          <slot name="nota" />
+        </span>
       </p>
 
       <!-- Un dato del conjunto: «1 cuenta activa», «$2,480 en riesgo». -->
-      <p class="text-xs text-beige-600">
+      <p class="text-xs text-apagado">
         <slot name="resumen" />
       </p>
     </div>

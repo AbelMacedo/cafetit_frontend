@@ -1,5 +1,5 @@
 import { useApi } from '~/shared/composables/useApi'
-import type { ApiResource, Venta } from '~/shared/types/api'
+import type { ApiResource, Money, Venta } from '~/shared/types/api'
 
 interface RespuestaPaginada {
   data: Venta[]
@@ -8,6 +8,9 @@ interface RespuestaPaginada {
     last_page: number
     per_page: number
     total: number
+
+    /** Lo cobrado en TODO el periodo filtrado, no en esta página. */
+    cobrado?: Money
   }
 }
 
@@ -16,24 +19,32 @@ export type FiltroEstado = 'todas' | 'paid' | 'cancelled'
 /**
  * Registro de ventas.
  *
- * Por omisión muestra **el día de hoy**, no todo el histórico: quien abre
- * esta pantalla casi siempre busca una venta reciente — para reimprimir su
- * ticket o para cancelarla. El histórico completo es el caso raro, y para
- * eso están los filtros.
+ * **Abre sin fechas puestas.** Antes llegaba con el día de hoy ya
+ * escrito en los dos campos, y eso no es un filtro: es un recorte que
+ * nadie pidió, con el agravante de parecer puesto por quien abre la
+ * pantalla. Sin fechas se traen las más recientes, que es lo que casi
+ * siempre se busca —reimprimir un ticket, cancelar una venta— y el
+ * filtro queda libre para acotar de verdad.
+ *
+ * El servidor las ordena de la más nueva a la más vieja y se pide una
+ * página: sin rango no se trae el histórico entero.
  */
 export function useSalesHistory() {
   const api = useApi()
+
+  const POR_PAGINA = 100
 
   const ventas = ref<Venta[]>([])
   const total = ref(0)
   const pagina = ref(1)
   const ultimaPagina = ref(1)
+  const cobrado = ref(0)
 
   const cargando = ref(false)
   const error = ref<string | null>(null)
 
-  const desde = ref(hoyEnISO())
-  const hasta = ref(hoyEnISO())
+  const desde = ref('')
+  const hasta = ref('')
   const estado = ref<FiltroEstado>('todas')
   const busqueda = ref('')
 
@@ -43,26 +54,27 @@ export function useSalesHistory() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   }
 
-  /** Las cobradas del periodo: lo que de verdad entró. */
-  const totalCobrado = computed(() =>
-    ventas.value
-      .filter(v => v.estado === 'paid')
-      .reduce((n, v) => n + v.total.cents, 0)
-  )
+  /*
+   | Lo cobrado lo manda el servidor, calculado sobre la consulta entera.
+   |
+   | Antes se sumaba aquí con las ventas cargadas. Como se piden 100 por
+   | página, la esquina decía «Cobrado: $4,310» cuando en el periodo
+   | había el doble, y nada lo advertía. Una cifra de dinero corta sin
+   | avisar es peor que no ponerla.
+   */
+  const totalCobrado = computed(() => cobrado.value)
 
   const canceladas = computed(() => ventas.value.filter(v => v.estado === 'cancelled').length)
 
-  /** El filtro por texto se aplica en memoria: la lista de un día es corta. */
-  const visibles = computed(() => {
-    const texto = busqueda.value.trim().toLowerCase()
-    if (!texto) return ventas.value
-
-    return ventas.value.filter(v =>
-      String(v.folio).includes(texto)
-      || (v.cliente ?? '').toLowerCase().includes(texto)
-      || (v.cajero ?? '').toLowerCase().includes(texto)
-    )
-  })
+  /*
+   | La lista es la que vino: el buscador va al servidor.
+   |
+   | Filtrarlo aquí parecía barato y escondía un agujero: sólo miraba las
+   | ventas cargadas, así que buscar el folio de la semana pasada
+   | contestaba «ninguna venta coincide». La venta estaba; no se había
+   | traído, y quien buscaba su ticket se quedaba creyendo que no existía.
+   */
+  const visibles = computed(() => ventas.value)
 
   async function cargar(): Promise<void> {
     cargando.value = true
@@ -79,16 +91,19 @@ export function useSalesHistory() {
          * el backend, que es el único que sabe en qué zona vive el
          * negocio.
          */
-        desde: desde.value,
-        hasta: hasta.value,
+        // Vacías no viajan: el filtro sin poner no debe acotar nada.
+        desde: desde.value || undefined,
+        hasta: hasta.value || undefined,
         status: estado.value === 'todas' ? undefined : estado.value,
-        per_page: 100,
+        q: busqueda.value.trim() || undefined,
+        per_page: POR_PAGINA,
         page: pagina.value
       })
 
       ventas.value = r.data
       total.value = r.meta?.total ?? r.data.length
       ultimaPagina.value = r.meta?.last_page ?? 1
+      cobrado.value = r.meta?.cobrado?.cents ?? 0
     } catch {
       error.value = 'No se pudo cargar el registro de ventas.'
     } finally {
@@ -112,6 +127,22 @@ export function useSalesHistory() {
     hasta.value = hoyEnISO()
   }
 
+  /**
+   * Cualquier filtro devuelve a la primera página.
+   *
+   * Sin esto, acotar estando en la página 3 de un rango ancho dejaba la
+   * lista vacía con los filtros puestos: parecía que no había ventas.
+   */
+  async function recargarDesdeLaPrimera(): Promise<void> {
+    pagina.value = 1
+    await cargar()
+  }
+
+  async function irAPagina(n: number): Promise<void> {
+    pagina.value = Math.min(Math.max(1, n), ultimaPagina.value)
+    await cargar()
+  }
+
   return {
     ventas,
     visibles,
@@ -120,6 +151,7 @@ export function useSalesHistory() {
     canceladas,
     pagina,
     ultimaPagina,
+    porPagina: POR_PAGINA,
     desde,
     hasta,
     estado,
@@ -129,6 +161,8 @@ export function useSalesHistory() {
     cargar,
     detalle,
     cancelar,
-    hoy
+    hoy,
+    recargarDesdeLaPrimera,
+    irAPagina
   }
 }

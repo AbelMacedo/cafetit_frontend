@@ -5,7 +5,12 @@ import { useProductAdmin } from '~/features/catalog/composables/useProductAdmin'
 import { ApiError } from '~/shared/composables/useApi'
 import type { Product, ProductoAGuardar } from '~/shared/types/api'
 
-definePageMeta({ middleware: 'auth' })
+/*
+ * `altoCompleto`: la tabla se queda con el alto sobrante y es lo único
+ * que se desplaza. En la tableta, con la página moviéndose por fuera y
+ * la lista por dentro, el dedo arrastra lo que no era.
+ */
+definePageMeta({ middleware: 'auth', altoCompleto: true })
 
 const toast = useToast()
 const {
@@ -26,6 +31,23 @@ const filtroRetirados = computed({
     incluirInactivos.value = v === 'todos'
   }
 })
+
+/**
+ * El estado de los retirados cuenta como filtro.
+ *
+ * Abrir en «sólo a la venta» es cómodo, pero es un recorte: quien no
+ * encuentre un producto tiene que poder quitarlo de un toque sin
+ * adivinar qué control lo está escondiendo.
+ */
+const filtrada = computed(() =>
+  busqueda.value !== '' || categoriaActiva.value !== null || incluirInactivos.value
+)
+
+function limpiarFiltros(): void {
+  busqueda.value = ''
+  categoriaActiva.value = null
+  incluirInactivos.value = false
+}
 
 const editando = ref<Product | null>(null)
 const creando = ref(false)
@@ -125,7 +147,7 @@ function rangoDePrecios(p: Product): string {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-3 md:h-full md:flex md:flex-col md:min-h-0">
     <PaginaTitulo
       titulo="Productos"
       descripcion="El catálogo que ve el mostrador. Cada producto puede tener varias presentaciones."
@@ -151,15 +173,14 @@ function rangoDePrecios(p: Product): string {
     <BarraFiltros
       :visibles="visibles.length"
       :total="productos.length"
-      :filtrada="busqueda !== '' || categoriaActiva !== null"
-      @limpiar="busqueda = ''; categoriaActiva = null"
     >
       <template #buscar>
         <UInput
           v-model="busqueda"
           placeholder="Buscar producto..."
           icon="i-lucide-search"
-          class="w-56"
+          size="lg"
+          class="w-44 2xl:w-56"
         />
       </template>
 
@@ -167,15 +188,36 @@ function rangoDePrecios(p: Product): string {
         <SelectorCategoria
           v-model="categoriaActiva"
           :categorias="categorias"
+          tamano="lg"
+          ancho="w-44 2xl:w-52"
         />
 
         <FiltroSelect
           v-model="filtroRetirados"
           :opciones="retirados"
+          tamano="lg"
           etiqueta="Filtrar por estado del producto"
           icono="i-lucide-eye"
-          ancho="w-48"
+          ancho="w-44 2xl:w-48"
         />
+
+        <!--
+          Limpiar pierde el rótulo antes de que la fila se parta: el icono
+          dice lo mismo en la mitad de sitio y el nombre sigue en el
+          `title` y para el lector de pantalla.
+        -->
+        <UButton
+          size="lg"
+          variant="ghost"
+          color="neutral"
+          icon="i-lucide-filter-x"
+          title="Quitar los filtros"
+          aria-label="Quitar los filtros"
+          :disabled="!filtrada"
+          @click="limpiarFiltros"
+        >
+          <span class="hidden 2xl:inline">Limpiar</span>
+        </UButton>
       </template>
     </BarraFiltros>
 
@@ -204,91 +246,140 @@ function rangoDePrecios(p: Product): string {
           v-else
           variant="outline"
           color="neutral"
-          @click="busqueda = ''; categoriaActiva = null"
+          icon="i-lucide-filter-x"
+          @click="limpiarFiltros"
         >
           Quitar filtros
         </UButton>
       </template>
     </SinResultados>
 
+    <!--
+      Tabla, no tarjetas: aquí se recorre comparando —qué cuesta cada
+      cosa, cuál controla inventario, cuál salió de la venta— y eso se
+      hace con la vista en columnas alineadas.
+    -->
     <div
       v-else
-      class="space-y-2"
+      class="tarjeta overflow-hidden md:flex-1 md:min-h-0"
     >
-      <div
-        v-for="p in visibles"
-        :key="p.id"
-        class="tarjeta p-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3"
-        :class="p.is_active ? '' : 'opacity-60'"
-      >
-        <div class="min-w-0 flex-1">
-          <div class="flex flex-wrap items-center gap-2">
-            <p class="font-medium leading-tight">
-              {{ p.name }}
-            </p>
-            <UBadge
-              v-if="!p.is_active"
-              color="neutral"
-              variant="subtle"
-              size="sm"
-            >
-              Retirado
-            </UBadge>
-            <UBadge
-              v-if="p.show_on_landing"
-              color="primary"
-              variant="subtle"
-              size="sm"
-            >
-              Web
-            </UBadge>
-          </div>
-          <p class="text-xs text-beige-600">
-            {{ p.category?.name }}
-            <template v-if="(p.variants?.length ?? 0) > 1">
-              · {{ p.variants?.length }} variantes
-            </template>
-            <template v-if="p.variants?.[0]?.tracks_stock">
-              · controla inventario
-            </template>
-          </p>
-        </div>
+      <div class="overflow-auto max-h-[60vh] md:max-h-none md:h-full">
+        <table class="w-full text-sm">
+          <thead class="sticky top-0 z-10">
+            <tr class="text-center [&>th]:border-r [&>th]:border-borde [&>th:last-child]:border-r-0">
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde">
+                Producto
+              </th>
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde hidden lg:table-cell">
+                Categoría
+              </th>
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde hidden lg:table-cell">
+                Presentaciones
+              </th>
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde">
+                Precio
+              </th>
+              <th class="px-3 lg:px-4 py-3 font-medium text-xs uppercase tracking-wide text-apagado bg-superficie border-b border-borde">
+                Acciones
+              </th>
+            </tr>
+          </thead>
 
-        <!--
-          Precio y acciones viajan juntos en su propio bloque.
-
-          En un teléfono, con todo en la misma fila, el nombre se queda
-          con un tercio del ancho y «Frappé de café» se parte en tres
-          renglones. Así el nombre ocupa su línea completa y esto baja
-          debajo, repartido de extremo a extremo.
-        -->
-        <div class="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 shrink-0">
-          <span class="text-sm font-semibold tabular-nums text-cafe-800 dark:text-beige-100">
-            {{ rangoDePrecios(p) }}
-          </span>
-
-          <span class="flex items-center gap-1">
-            <UButton
-              size="xs"
-              variant="outline"
-              color="neutral"
-              icon="i-lucide-pencil"
-              @click="editar(p)"
+          <tbody>
+            <tr
+              v-for="p in visibles"
+              :key="p.id"
+              class="border-b border-borde-suave last:border-0 transition
+                     [&>td]:border-r [&>td]:border-borde-suave [&>td:last-child]:border-r-0"
+              :class="p.is_active ? '' : 'text-apagado-2'"
             >
-              Editar
-            </UButton>
+              <td class="px-3 lg:px-4 py-4 text-center w-1/3 max-w-0">
+                <span class="block truncate">
+                  <span class="font-medium">{{ p.name }}</span>
 
-            <UButton
-              v-if="p.is_active"
-              size="xs"
-              variant="ghost"
-              color="neutral"
-              @click="retirando = p"
-            >
-              Retirar
-            </UButton>
-          </span>
-        </div>
+                  <!--
+                    Las dos insignias dicen cosas distintas: «Retirado» es
+                    un estado del producto y «Web» es dónde se muestra. Van
+                    junto al nombre porque califican al nombre.
+                  -->
+                  <UBadge
+                    v-if="!p.is_active"
+                    color="neutral"
+                    variant="subtle"
+                    size="md"
+                    class="ml-2 align-middle"
+                  >
+                    Retirado
+                  </UBadge>
+                  <UBadge
+                    v-if="p.show_on_landing"
+                    color="primary"
+                    variant="subtle"
+                    size="md"
+                    class="ml-2 align-middle"
+                  >
+                    Web
+                  </UBadge>
+                </span>
+
+                <!-- En angosto la categoría se mete aquí: su columna se oculta. -->
+                <span class="block truncate text-xs text-apagado lg:hidden">
+                  {{ p.category?.name }}
+                </span>
+              </td>
+
+              <td class="px-3 lg:px-4 py-4 text-center w-1/5 max-w-0 truncate text-apagado hidden lg:table-cell">
+                {{ p.category?.name }}
+              </td>
+
+              <!--
+                «Controla inventario» va aquí y no suelto al final: es una
+                propiedad de las presentaciones —son ellas las que llevan
+                existencias— y leerlo al lado del número lo explica.
+              -->
+              <td class="px-3 lg:px-4 py-4 text-center tabular-nums whitespace-nowrap hidden lg:table-cell">
+                {{ p.variants?.length ?? 0 }}
+                <span
+                  v-if="p.variants?.[0]?.tracks_stock"
+                  class="block text-xs text-apagado"
+                >con inventario</span>
+              </td>
+
+              <td class="px-3 lg:px-4 py-4 text-center tabular-nums font-medium whitespace-nowrap">
+                {{ rangoDePrecios(p) }}
+              </td>
+
+              <td class="px-3 lg:px-4 py-4 text-center whitespace-nowrap">
+                <span class="inline-flex items-center gap-1">
+                  <UButton
+                    size="sm"
+                    variant="outline"
+                    color="neutral"
+                    icon="i-lucide-pencil"
+                    title="Editar"
+                    aria-label="Editar"
+                    @click="editar(p)"
+                  >
+                    <span class="hidden lg:inline">Editar</span>
+                  </UButton>
+
+                  <UButton
+                    v-if="p.is_active"
+                    size="sm"
+                    variant="ghost"
+                    color="neutral"
+                    icon="i-lucide-eye-off"
+                    title="Retirar de la venta"
+                    aria-label="Retirar de la venta"
+                    @click="retirando = p"
+                  >
+                    <span class="hidden lg:inline">Retirar</span>
+                  </UButton>
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 

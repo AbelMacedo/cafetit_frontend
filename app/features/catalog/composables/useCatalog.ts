@@ -36,11 +36,17 @@ export function useCatalog() {
       // En paralelo: son independientes y la pantalla necesita ambas.
       const [cats, prods] = await Promise.all([
         api.get<ApiCollection<Category>>('/categories', { only_active: true }),
-        api.get<ApiCollection<Product>>('/products', { only_active: true, per_page: 200 })
+
+        /*
+         | El catálogo del mostrador va COMPLETO. Lo que no esté aquí no
+         | se puede cobrar, y una página suelta no avisa de lo que dejó
+         | fuera: simplemente faltaría mercancía en la cuadrícula.
+         */
+        api.todas<Product>('/products', { only_active: true })
       ])
 
       categorias.value = cats.data
-      productos.value = prods.data
+      productos.value = prods
     } catch {
       error.value = 'No se pudo cargar el catálogo.'
     } finally {

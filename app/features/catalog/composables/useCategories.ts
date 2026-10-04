@@ -6,6 +6,8 @@ export interface CategoriaAGuardar {
   name: string
   description?: string | null
   color?: string | null
+  /** Nombre corto del icono, de la lista que manda el servidor. */
+  icon?: string | null
   sort_order?: number | null
   is_active?: boolean
 }

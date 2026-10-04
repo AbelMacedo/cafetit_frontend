@@ -39,7 +39,7 @@ const prefijo = computed(() => ({
 const clases = computed(() => ({
   chico: 'text-sm',
   normal: 'font-medium',
-  grande: 'text-3xl font-semibold text-cafe-800 dark:text-beige-100'
+  grande: 'text-3xl font-semibold text-tinta'
 }[props.tamano]))
 </script>
 

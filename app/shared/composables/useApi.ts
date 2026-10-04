@@ -1,4 +1,4 @@
-import type { ValidationError } from '~/shared/types/api'
+import type { ApiCollection, ValidationError } from '~/shared/types/api'
 
 /**
  * Cliente único de la API.
@@ -121,9 +121,50 @@ export function useApi() {
     )
   }
 
+  /**
+   * Un listado entero, página por página.
+   *
+   * Para los catálogos que la pantalla necesita **completos**. Antes se
+   * pedía `per_page: 200` y se daba por hecho que cabrían: con 201
+   * productos, el 201 no aparecía en el mostrador y **no se podía
+   * vender**, sin un aviso ni un hueco visible. Un fallo callado.
+   *
+   * El tope de páginas existe para que un `meta` equivocado no deje al
+   * navegador pidiendo páginas para siempre. Son 5.000 productos; si una
+   * cafetería llega ahí, el problema es otro.
+   */
+  async function todas<T>(
+    ruta: string,
+    query: Record<string, string | number | boolean | undefined> = {},
+    porPagina = 200
+  ): Promise<T[]> {
+    const PAGINAS_MAXIMAS = 25
+
+    const items: T[] = []
+    let pagina = 1
+    let ultima = 1
+
+    while (pagina <= ultima && pagina <= PAGINAS_MAXIMAS) {
+      const r = await request<ApiCollection<T>>(ruta, {
+        method: 'GET',
+        query: { ...query, per_page: porPagina, page: pagina }
+      })
+
+      items.push(...r.data)
+
+      // Sin `meta` el endpoint no pagina: lo que vino es todo.
+      ultima = r.meta?.last_page ?? 1
+      pagina++
+    }
+
+    return items
+  }
+
   return {
     get: <T>(ruta: string, query?: Record<string, string | number | boolean | undefined>) =>
       request<T>(ruta, { method: 'GET', query }),
+
+    todas,
 
     post: <T>(ruta: string, body?: unknown) => request<T>(ruta, { method: 'POST', body }),
 

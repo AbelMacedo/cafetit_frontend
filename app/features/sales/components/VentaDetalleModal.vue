@@ -70,21 +70,21 @@ function confirmarCancelacion() {
           </p>
           <p
             v-if="venta.cancelacion"
-            class="text-sm text-beige-700 dark:text-beige-300"
+            class="text-sm text-apagado"
           >
             {{ venta.cancelacion.motivo }}
           </p>
         </div>
 
         <dl class="grid grid-cols-2 gap-y-1 text-sm">
-          <dt class="text-beige-600">
+          <dt class="text-apagado">
             Cobrada
           </dt>
           <dd class="text-right">
             {{ new Date(venta.cobrado_en).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) }}
           </dd>
 
-          <dt class="text-beige-600">
+          <dt class="text-apagado">
             Cajero
           </dt>
           <dd class="text-right">
@@ -92,7 +92,7 @@ function confirmarCancelacion() {
           </dd>
 
           <template v-if="venta.cliente">
-            <dt class="text-beige-600">
+            <dt class="text-apagado">
               Cliente
             </dt>
             <dd class="text-right">
@@ -101,34 +101,34 @@ function confirmarCancelacion() {
           </template>
         </dl>
 
-        <div class="border-t border-beige-200 dark:border-beige-800 pt-3 space-y-1">
+        <div class="border-t border-borde pt-3 space-y-1">
           <div
             v-for="l in venta.lineas ?? []"
             :key="l.id"
             class="flex items-baseline justify-between gap-3 text-sm"
           >
             <span class="min-w-0">
-              <span class="tabular-nums text-beige-600">{{ l.cantidad }}×</span>
+              <span class="tabular-nums text-apagado">{{ l.cantidad }}×</span>
               {{ l.nombre }}
               <span
                 v-if="l.nota"
-                class="text-xs text-beige-600"
+                class="text-xs text-apagado"
               >· {{ l.nota }}</span>
             </span>
             <span class="tabular-nums whitespace-nowrap">{{ l.total.formatted }}</span>
           </div>
         </div>
 
-        <div class="border-t border-beige-200 dark:border-beige-800 pt-3 space-y-1 text-sm">
+        <div class="border-t border-borde pt-3 space-y-1 text-sm">
           <div class="flex justify-between">
-            <span class="text-beige-600">Subtotal</span>
+            <span class="text-apagado">Subtotal</span>
             <span class="tabular-nums">{{ venta.subtotal.formatted }}</span>
           </div>
           <div
             v-if="venta.descuento.monto.cents > 0"
             class="flex justify-between"
           >
-            <span class="text-beige-600">
+            <span class="text-apagado">
               Descuento
               <span
                 v-if="venta.descuento.motivo"
@@ -139,19 +139,19 @@ function confirmarCancelacion() {
           </div>
           <div class="flex justify-between items-baseline pt-1">
             <span class="font-medium">Total</span>
-            <span class="text-2xl font-semibold tabular-nums text-cafe-800 dark:text-beige-100">
+            <span class="text-2xl font-semibold tabular-nums text-tinta">
               {{ venta.total.formatted }}
             </span>
           </div>
         </div>
 
-        <div class="border-t border-beige-200 dark:border-beige-800 pt-3 space-y-1 text-sm">
+        <div class="border-t border-borde pt-3 space-y-1 text-sm">
           <div
             v-for="(p, i) in venta.pagos ?? []"
             :key="i"
             class="flex justify-between"
           >
-            <span class="text-beige-600">
+            <span class="text-apagado">
               {{ p.metodo_texto }}
               <span
                 v-if="p.referencia"
@@ -165,7 +165,7 @@ function confirmarCancelacion() {
             :key="`cambio-${i}`"
             class="flex justify-between"
           >
-            <span class="text-beige-600">Cambio</span>
+            <span class="text-apagado">Cambio</span>
             <span class="tabular-nums">{{ p.cambio?.formatted }}</span>
           </div>
         </div>
@@ -173,7 +173,7 @@ function confirmarCancelacion() {
         <!-- Cancelar pide motivo en el mismo lugar, sin otro diálogo -->
         <div
           v-if="pidiendoMotivo"
-          class="border-t border-beige-200 dark:border-beige-800 pt-3 space-y-2"
+          class="border-t border-borde pt-3 space-y-2"
         >
           <UFormField
             label="¿Por qué se cancela?"

@@ -129,10 +129,10 @@ onMounted(() => pagarTodo('cash'))
     <template #body>
       <div class="space-y-5">
         <div class="text-center">
-          <p class="text-sm text-beige-600">
+          <p class="text-sm text-apagado">
             Total a cobrar
           </p>
-          <p class="text-4xl font-semibold tabular-nums text-cafe-800 dark:text-beige-100">
+          <p class="text-4xl font-semibold tabular-nums text-tinta">
             {{ formatearCentavos(total) }}
           </p>
         </div>
@@ -179,7 +179,7 @@ onMounted(() => pagarTodo('cash'))
             :key="`monto-${metodo}`"
             class="flex items-center gap-3"
           >
-            <label class="w-32 text-sm text-beige-700 dark:text-beige-300">{{ etiqueta }}</label>
+            <label class="w-32 text-sm text-apagado">{{ etiqueta }}</label>
             <CampoPesos
               v-model="montos[metodo as Metodo]"
               size="lg"
@@ -190,10 +190,10 @@ onMounted(() => pagarTodo('cash'))
 
         <div
           v-if="montos.cash > 0"
-          class="rounded-lg bg-beige-100 dark:bg-beige-900 p-3 space-y-3"
+          class="rounded-lg bg-hundido p-3 space-y-3"
         >
           <div class="flex items-center gap-3">
-            <label class="w-32 text-sm text-beige-700 dark:text-beige-300">Recibido</label>
+            <label class="w-32 text-sm text-apagado">Recibido</label>
             <CampoPesos
               v-model="recibido"
               size="lg"
@@ -214,8 +214,8 @@ onMounted(() => pagarTodo('cash'))
             </UButton>
           </div>
 
-          <div class="flex items-baseline justify-between border-t border-beige-300 dark:border-beige-700 pt-2">
-            <span class="text-sm text-beige-700 dark:text-beige-300">Cambio</span>
+          <div class="flex items-baseline justify-between border-t border-borde-marcado pt-2">
+            <span class="text-sm text-apagado">Cambio</span>
             <span class="text-2xl font-semibold tabular-nums text-primary-600">
               {{ formatearCentavos(cambio) }}
             </span>

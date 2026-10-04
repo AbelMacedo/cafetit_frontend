@@ -49,9 +49,13 @@ export function useInventory() {
 
   async function cargarProductosConStock(): Promise<void> {
     try {
-      const r = await api.get<{ data: Product[] }>('/products', { only_active: true, per_page: 200 })
+      /*
+       | Completo: si un producto no sale en esta lista no se le puede
+       | registrar una entrada, y con `per_page: 200` el 201 no salía.
+       */
+      const productos = await api.todas<Product>('/products', { only_active: true })
 
-      conStock.value = r.data.flatMap(p =>
+      conStock.value = productos.flatMap(p =>
         (p.variants ?? [])
           .filter(v => v.tracks_stock && v.is_active)
           .map(v => ({

@@ -3,6 +3,7 @@ import { useCashSessionStore } from '~/features/cash/stores/cashSession'
 import { useCatalog } from '~/features/catalog/composables/useCatalog'
 import SelectorCategoria from '~/features/catalog/components/SelectorCategoria.vue'
 import TarjetaProducto from '~/features/catalog/components/TarjetaProducto.vue'
+import { etiquetaSinVenta, motivoSinVenta } from '~/features/catalog/utils/existencias'
 import CobroModal from '~/features/sales/components/CobroModal.vue'
 import DescuentoModal from '~/features/sales/components/DescuentoModal.vue'
 import { useAtajosVenta } from '~/features/sales/composables/useAtajosVenta'
@@ -42,8 +43,20 @@ onMounted(async () => {
  * Teclado
  */
 
-const variantesElegibles = computed(() =>
+/*
+ * Las presentaciones que se ofrecen, y las que no.
+ *
+ * Lo que no se puede cobrar sigue en la lista —esconderlo haría creer
+ * que el producto no existe— pero apagado y con el motivo. El atajo de
+ * teclado numera SÓLO las elegibles: que el «3» agregue algo que luego
+ * rebota es peor que no tener atajo.
+ */
+const variantesDelSelector = computed(() =>
   (eligiendo.value?.variants ?? []).filter(v => v.is_active)
+)
+
+const variantesElegibles = computed(() =>
+  variantesDelSelector.value.filter(v => motivoSinVenta(v) === null)
 )
 
 /** Los atajos duermen mientras hay un diálogo encima. */
@@ -274,12 +287,12 @@ function siguienteVenta() {
         <div class="space-y-3">
           <UIcon
             name="i-lucide-lock"
-            class="size-8 text-beige-500"
+            class="size-8 text-apagado-2"
           />
           <h2 class="text-lg font-semibold">
             La caja está cerrada
           </h2>
-          <p class="text-sm text-beige-600">
+          <p class="text-sm text-apagado">
             No se puede cobrar sin un turno abierto. Abre la caja declarando
             con cuánto empiezas.
           </p>
@@ -304,7 +317,8 @@ function siguienteVenta() {
             v-model="busqueda"
             placeholder="Buscar producto..."
             icon="i-lucide-search"
-            class="w-64"
+            size="lg"
+            class="w-72"
             autofocus
             @keydown.enter.prevent="alEnterEnBuscador"
           />
@@ -312,6 +326,8 @@ function siguienteVenta() {
           <SelectorCategoria
             v-model="categoriaActiva"
             :categorias="categorias"
+            tamano="lg"
+            ancho="w-56"
           />
         </div>
 
@@ -366,7 +382,7 @@ function siguienteVenta() {
           Uno que nadie conoce no existe; y quien lo aprende deja de
           mirar esta línea sin que estorbe.
         -->
-        <p class="shrink-0 text-xs text-beige-500 flex flex-wrap gap-x-4 gap-y-1">
+        <p class="shrink-0 text-xs text-apagado-2 flex flex-wrap gap-x-4 gap-y-1">
           <span><kbd class="font-sans font-medium">Escribe</kbd> para buscar</span>
           <span><kbd class="font-sans font-medium">Enter</kbd> agrega el único resultado</span>
           <span><kbd class="font-sans font-medium">F2</kbd> cobrar</span>
@@ -375,21 +391,22 @@ function siguienteVenta() {
       </section>
 
       <!-- Carrito -->
-      <aside class="w-96 shrink-0 border-l border-beige-200 dark:border-beige-800 bg-white dark:bg-beige-900 flex flex-col">
-        <div class="p-4 border-b border-beige-200 dark:border-beige-800 space-y-3">
+      <aside class="w-96 shrink-0 border-l border-borde bg-superficie flex flex-col">
+        <div class="p-4 border-b border-borde space-y-3">
           <div class="flex items-baseline justify-between gap-2">
-            <h2 class="font-semibold text-cafe-900 dark:text-beige-100">
+            <h2 class="font-semibold text-tinta">
               Resumen
             </h2>
             <span
               v-if="!carrito.vacio"
-              class="text-xs text-beige-600"
+              class="text-xs text-apagado"
             >{{ carrito.piezas }} {{ carrito.piezas === 1 ? 'pieza' : 'piezas' }}</span>
           </div>
 
           <UInput
             v-model="carrito.cliente"
             placeholder="Nombre del cliente (opcional)"
+            size="lg"
             class="w-full"
           />
         </div>
@@ -406,7 +423,7 @@ function siguienteVenta() {
           <div
             v-for="l in carrito.lineas"
             :key="l.uid"
-            class="rounded-lg border border-beige-200 dark:border-beige-800 p-2"
+            class="rounded-lg border border-borde p-2"
           >
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0">
@@ -415,7 +432,7 @@ function siguienteVenta() {
                 </p>
                 <p
                   v-if="l.variante.name"
-                  class="text-xs text-beige-600"
+                  class="text-xs text-apagado"
                 >
                   {{ l.variante.name }}
                 </p>
@@ -465,7 +482,7 @@ function siguienteVenta() {
                 <!-- Tachado el original: se ve qué se rebajó, no sólo el resultado -->
                 <span
                   v-if="carrito.descuentoLinea(l) > 0"
-                  class="block text-xs text-beige-500 line-through tabular-nums leading-none"
+                  class="block text-xs text-apagado-2 line-through tabular-nums leading-none"
                 >
                   {{ formatearCentavos(carrito.subtotalLinea(l)) }}
                 </span>
@@ -486,21 +503,21 @@ function siguienteVenta() {
                 : `${formatearCentavos(l.descuentoValor)} de descuento` }}
               <span
                 v-if="l.descuentoMotivo"
-                class="text-beige-600"
+                class="text-apagado"
               >· {{ l.descuentoMotivo }}</span>
             </p>
           </div>
         </div>
 
-        <div class="shrink-0 border-t border-beige-200 dark:border-beige-800 p-4 space-y-3">
+        <div class="shrink-0 border-t border-borde p-4 space-y-3">
           <div class="flex items-baseline justify-between">
-            <span class="text-sm text-beige-600">
+            <span class="text-sm text-apagado">
               {{ carrito.piezas }} {{ carrito.piezas === 1 ? 'pieza' : 'piezas' }}
             </span>
             <MontoDinero
               :valor="carrito.subtotal"
               tamano="chico"
-              class="text-beige-600"
+              class="text-apagado"
             />
           </div>
 
@@ -520,7 +537,7 @@ function siguienteVenta() {
                   : 'Descuento' }}
                 <span
                   v-if="carrito.descuentoMotivo"
-                  class="text-beige-600"
+                  class="text-apagado"
                 >· {{ carrito.descuentoMotivo }}</span>
               </span>
             </span>
@@ -537,7 +554,7 @@ function siguienteVenta() {
             v-if="carrito.redondeo !== 0"
             class="flex items-baseline justify-between text-sm"
           >
-            <span class="text-beige-600 flex items-center gap-1">
+            <span class="text-apagado flex items-center gap-1">
               <UIcon
                 name="i-lucide-coins"
                 class="size-3.5"
@@ -548,7 +565,7 @@ function siguienteVenta() {
               :valor="Math.abs(carrito.redondeo)"
               :signo="carrito.redondeo > 0 ? 'mas' : 'menos'"
               tamano="chico"
-              class="text-beige-600"
+              class="text-apagado"
             />
           </div>
 
@@ -565,7 +582,7 @@ function siguienteVenta() {
               size="xl"
               variant="outline"
               color="neutral"
-              class="toque"
+              class="toque justify-center"
               icon="i-lucide-percent"
               :disabled="carrito.vacio"
               :aria-label="'Descuento a toda la venta'"
@@ -597,23 +614,36 @@ function siguienteVenta() {
       <template #body>
         <div class="grid gap-2">
           <UButton
-            v-for="(v, i) in variantesElegibles"
+            v-for="v in variantesDelSelector"
             :key="v.id"
             block
             size="lg"
             variant="outline"
             color="neutral"
             class="toque justify-between"
+            :disabled="motivoSinVenta(v) !== null"
             @click="eligiendo && elegirVariante(eligiendo, v)"
           >
             <span class="flex items-center gap-2">
+              <!--
+                El número es el del atajo, que sólo cuenta las elegibles:
+                si numerara todas, el «3» de la pantalla y el «3» del
+                teclado señalarían cosas distintas.
+              -->
               <kbd
-                v-if="i < 9"
-                class="font-sans text-xs text-beige-500 border border-beige-300 dark:border-beige-700 rounded px-1"
-              >{{ i + 1 }}</kbd>
+                v-if="motivoSinVenta(v) === null && variantesElegibles.indexOf(v) < 9"
+                class="font-sans text-xs text-apagado-2 border border-borde-marcado rounded px-1"
+              >{{ variantesElegibles.indexOf(v) + 1 }}</kbd>
               {{ v.name ?? 'Único' }}
             </span>
-            <MontoDinero :valor="v.price" />
+
+            <span class="flex items-center gap-2">
+              <span
+                v-if="motivoSinVenta(v)"
+                class="text-xs text-apagado-2"
+              >{{ etiquetaSinVenta(motivoSinVenta(v)!) }}</span>
+              <MontoDinero :valor="v.price" />
+            </span>
           </UButton>
         </div>
       </template>
@@ -659,11 +689,11 @@ function siguienteVenta() {
             name="i-lucide-circle-check"
             class="size-10 text-success-500"
           />
-          <p class="text-sm text-beige-600">
+          <p class="text-sm text-apagado">
             Venta #{{ ultimoTicket?.folio }} · {{ ultimoTicket?.total }}
           </p>
           <div v-if="ultimoTicket?.cambio && ultimoTicket.cambio !== '$0.00'">
-            <p class="text-sm text-beige-600">
+            <p class="text-sm text-apagado">
               Cambio
             </p>
             <p class="text-5xl font-semibold tabular-nums text-primary-600">

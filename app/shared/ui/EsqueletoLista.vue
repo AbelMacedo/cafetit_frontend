@@ -25,7 +25,7 @@ withDefaults(defineProps<{
     <div
       v-for="n in filas"
       :key="n"
-      class="tarjeta animate-pulse bg-beige-100/70"
+      class="tarjeta animate-pulse bg-lienzo/70"
       :class="alto"
     />
   </div>

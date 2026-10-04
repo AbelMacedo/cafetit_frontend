@@ -22,7 +22,7 @@ withDefaults(defineProps<{
 
 <template>
   <div
-    class="flex flex-col items-center justify-center gap-1 border border-dashed border-beige-300 bg-beige-100 text-beige-600 dark:border-beige-700 dark:bg-beige-900 dark:text-beige-400"
+    class="flex flex-col items-center justify-center gap-1 border border-dashed border-borde-marcado bg-lienzo text-apagado"
     :class="redondeado ? 'rounded-lg' : ''"
     :style="{ aspectRatio: ratio }"
   >
