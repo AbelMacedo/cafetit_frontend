@@ -1,0 +1,11 @@
+# El POS es una sola página: el enrutado lo hace el navegador.
+#
+# Sin esta regla, Cloudflare busca un archivo por cada ruta y devuelve
+# 404 en todo lo que no sea la raíz. Se nota al recargar estando en
+# /ventas, al abrir un enlace guardado o al volver de un PDF: la
+# aplicación funciona hasta que alguien pulsa F5.
+#
+# El 200 es lo importante. Con un 301 o un 302 el navegador cambiaría la
+# barra de direcciones a «/» y el cajero perdería la pantalla en la que
+# estaba.
+/*    /index.html   200
