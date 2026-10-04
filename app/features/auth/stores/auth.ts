@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { ApiResource, User } from '~/shared/types/api'
+import type { ApiResource, Entorno, User } from '~/shared/types/api'
 import { useApi } from '~/shared/composables/useApi'
 
 /**
@@ -15,6 +15,16 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const cargando = ref(false)
   const verificado = ref(false)
+
+  /*
+   * El entorno lo dice la API al recuperar la sesión.
+   *
+   * Arranca en null —«todavía no se sabe»— y no en «producción»: pintar
+   * una suposición sería exactamente lo que este dato viene a evitar.
+   */
+  const entorno = ref<Entorno | null>(null)
+
+  const esPruebas = computed(() => entorno.value?.es_produccion === false)
 
   const autenticado = computed(() => user.value !== null)
   const sucursal = computed(() => user.value?.store ?? null)
@@ -70,8 +80,9 @@ export const useAuthStore = defineStore('auth', () => {
     if (verificado.value) return
 
     try {
-      const respuesta = await api.get<ApiResource<User>>('/me')
+      const respuesta = await api.get<ApiResource<User> & { entorno?: Entorno }>('/me')
       user.value = respuesta.data
+      entorno.value = respuesta.entorno ?? null
     } catch {
       user.value = null
     } finally {
@@ -81,6 +92,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user, cargando, verificado, autenticado, sucursal,
+    entorno, esPruebas,
     login, logout, cambiarCajero, recuperarSesion
   }
 })

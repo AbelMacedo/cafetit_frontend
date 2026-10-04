@@ -42,6 +42,26 @@ const cambiandoCajero = ref(false)
  * negocio se vieran distintas sin que nadie lo decidiera. Se elige aquí
  * y se queda guardado en ese navegador.
  */
+/*
+ * El aviso de entorno de pruebas.
+ *
+ * Dos POS idénticos en dos pestañas es como alguien acaba cobrando de
+ * verdad creyendo que practica —o practicando en el bueno y dejando
+ * ventas falsas en el corte—. Por eso esto no es un detalle de color:
+ * va arriba del todo, ocupa ancho completo y no se puede cerrar.
+ *
+ * Lo declara la API, no esta pantalla: así describe a qué base de datos
+ * se está escribiendo de verdad, y no a cuál cree el POS que escribe.
+ */
+useHead({
+  titleTemplate: (titulo?: string) => {
+    const base = titulo ?? 'La Cafetit'
+
+    // También en la pestaña, para quien tenga las dos abiertas.
+    return auth.esPruebas ? `[PRUEBAS] ${base}` : base
+  }
+})
+
 const tema = useColorMode()
 const esOscuro = computed(() => tema.value === 'dark')
 
@@ -367,6 +387,21 @@ watch(() => ruta.path, () => {
           <CampanaAvisos />
         </div>
       </header>
+
+      <!--
+        La franja de pruebas, antes que nada.
+
+        Va aquí y no dentro del contenido porque tiene que verse
+        igual en todas las pantallas y en cualquier desplazamiento.
+      -->
+      <div
+        v-if="auth.esPruebas"
+        class="px-4 sm:px-6 py-1.5 bg-cafe-800 text-center shrink-0"
+      >
+        <span class="text-xs font-semibold tracking-wide text-white uppercase">
+          Entorno de pruebas · lo que se cobre aquí no es real
+        </span>
+      </div>
 
       <!-- Aviso de caja cerrada, sólo donde estorba no saberlo -->
       <div

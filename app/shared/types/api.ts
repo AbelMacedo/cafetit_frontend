@@ -481,6 +481,18 @@ export interface ApiCollection<T> {
   }
 }
 
+/**
+ * Qué entorno contesta, según la propia API.
+ *
+ * Lo declara el servidor y no el POS: el riesgo no es equivocarse de
+ * color, es cobrar de verdad creyendo que se practica. Quien sabe a qué
+ * base se escribe es quien escribe.
+ */
+export interface Entorno {
+  nombre: string
+  es_produccion: boolean
+}
+
 /** Error de validación de Laravel (422). */
 export interface ValidationError {
   message: string
