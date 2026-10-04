@@ -9,6 +9,14 @@ import { useApi } from '~/shared/composables/useApi'
  * que este código no puede leer. Aquí sólo se refleja *quién* está dentro,
  * para pintar la interfaz.
  */
+/**
+ * Toda respuesta que establece sesión dice también en qué entorno estamos.
+ *
+ * El `?` no sobra: una API anterior a esto no lo manda, y entonces vale
+ * más no pintar nada que pintar una suposición.
+ */
+type RespuestaDeSesion = ApiResource<User> & { entorno?: Entorno }
+
 export const useAuthStore = defineStore('auth', () => {
   const api = useApi()
 
@@ -32,8 +40,9 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(email: string, password: string): Promise<void> {
     cargando.value = true
     try {
-      const respuesta = await api.post<ApiResource<User>>('/login', { email, password })
+      const respuesta = await api.post<RespuestaDeSesion>('/login', { email, password })
       user.value = respuesta.data
+      entorno.value = respuesta.entorno ?? null
       verificado.value = true
     } finally {
       cargando.value = false
@@ -63,9 +72,10 @@ export const useAuthStore = defineStore('auth', () => {
    * Devuelve el nombre de quien entra, para el aviso.
    */
   async function cambiarCajero(pin: string): Promise<string> {
-    const respuesta = await api.post<ApiResource<User>>('/pin-unlock', { pin })
+    const respuesta = await api.post<RespuestaDeSesion>('/pin-unlock', { pin })
 
     user.value = respuesta.data
+    entorno.value = respuesta.entorno ?? null
 
     return respuesta.data.name
   }
@@ -80,7 +90,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (verificado.value) return
 
     try {
-      const respuesta = await api.get<ApiResource<User> & { entorno?: Entorno }>('/me')
+      const respuesta = await api.get<RespuestaDeSesion>('/me')
       user.value = respuesta.data
       entorno.value = respuesta.entorno ?? null
     } catch {
