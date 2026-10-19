@@ -85,15 +85,41 @@ watch(() => props.total, (nuevo, anterior) => {
   if (recibido.value === anterior) recibido.value = nuevo
 })
 
-/** Billetes con los que la gente paga de verdad. */
+/**
+ * Billetes con los que la gente paga de verdad.
+ *
+ * Se calculan sobre lo que se cobra EN EFECTIVO, no sobre el total.
+ * En un pago partido no son lo mismo: con $70 de venta repartidos en
+ * $35 de tarjeta y $35 en efectivo, ofrecer «$70» como entregado es
+ * ofrecer un número que parece el importe exacto y no lo es. Nadie da
+ * setenta pesos para cubrir treinta y cinco.
+ */
 const sugerencias = computed(() => {
-  const t = props.total
-  const opciones = [t, 10000, 20000, 50000, 100000]
-    .filter(v => v >= t)
+  const efectivo = montos.value.cash
+  if (efectivo <= 0) return []
+
+  const opciones = [efectivo, 5000, 10000, 20000, 50000, 100000]
+    .filter(v => v >= efectivo)
     .filter((v, i, a) => a.indexOf(v) === i)
     .sort((a, b) => a - b)
 
   return opciones.slice(0, 4)
+})
+
+/**
+ * Lo recibido sigue al efectivo mientras nadie lo haya tocado.
+ *
+ * El diálogo abre con todo en efectivo y `recibido` igual al total. Si
+ * el cajero reparte el pago y no vuelve a este campo, la venta quedaría
+ * diciendo que el cliente entregó el total completo en efectivo para
+ * cubrir sólo una parte — y con un cambio que nadie dio.
+ *
+ * **Sólo se ajusta si venía en el importe exacto anterior.** Un número
+ * que el cajero escribió es suyo: pisarlo sería cobrar algo distinto de
+ * lo que capturó. Es el mismo criterio que el ajuste por redondeo.
+ */
+watch(() => montos.value.cash, (nuevo, anterior) => {
+  if (recibido.value === anterior) recibido.value = nuevo
 })
 
 function enviar() {
@@ -158,33 +184,56 @@ onMounted(() => pagarTodo('cash'))
             : `Redondear a ${formatearCentavos(conRedondeo)}` }}
         </UButton>
 
-        <div class="grid grid-cols-3 gap-2">
-          <UButton
-            v-for="(etiqueta, metodo) in etiquetas"
-            :key="metodo"
-            block
-            size="lg"
-            :variant="montos[metodo as Metodo] === total ? 'soft' : 'outline'"
-            :color="montos[metodo as Metodo] === total ? 'primary' : 'neutral'"
-            class="toque"
-            @click="pagarTodo(metodo as Metodo)"
-          >
-            {{ etiqueta }}
-          </UButton>
+        <!--
+          Estos tres botones NO son un selector de método: son atajos
+          que ponen el total entero en uno. El dato de verdad son los
+          importes de abajo, y un pago mixto es simplemente más de un
+          renglón con cantidad.
+
+          Sin el rótulo parecían un selector —tres botones en fila, uno
+          encendido— y al repartir el pago no quedaba ninguno marcado,
+          lo que se leía como que algo había fallado. La línea de arriba
+          cuesta un renglón y quita la duda entera.
+        -->
+        <div class="space-y-1.5">
+          <p class="text-xs font-medium uppercase tracking-wide text-apagado">
+            Cobrar todo con
+          </p>
+
+          <div class="grid grid-cols-3 gap-2">
+            <UButton
+              v-for="(etiqueta, metodo) in etiquetas"
+              :key="metodo"
+              block
+              size="lg"
+              :variant="montos[metodo as Metodo] === total ? 'soft' : 'outline'"
+              :color="montos[metodo as Metodo] === total ? 'primary' : 'neutral'"
+              class="toque"
+              @click="pagarTodo(metodo as Metodo)"
+            >
+              {{ etiqueta }}
+            </UButton>
+          </div>
         </div>
 
-        <div class="space-y-2">
-          <div
-            v-for="(etiqueta, metodo) in etiquetas"
-            :key="`monto-${metodo}`"
-            class="flex items-center gap-3"
-          >
-            <label class="w-32 text-sm text-apagado">{{ etiqueta }}</label>
-            <CampoPesos
-              v-model="montos[metodo as Metodo]"
-              size="lg"
-              class="flex-1"
-            />
+        <div class="space-y-1.5">
+          <p class="text-xs font-medium uppercase tracking-wide text-apagado">
+            O repartir el cobro
+          </p>
+
+          <div class="space-y-2">
+            <div
+              v-for="(etiqueta, metodo) in etiquetas"
+              :key="`monto-${metodo}`"
+              class="flex items-center gap-3"
+            >
+              <label class="w-32 text-sm text-apagado">{{ etiqueta }}</label>
+              <CampoPesos
+                v-model="montos[metodo as Metodo]"
+                size="lg"
+                class="flex-1"
+              />
+            </div>
           </div>
         </div>
 
@@ -192,8 +241,16 @@ onMounted(() => pagarTodo('cash'))
           v-if="montos.cash > 0"
           class="rounded-lg bg-hundido p-3 space-y-3"
         >
+          <!--
+            «Efectivo recibido», no «Recibido» a secas.
+
+            Después de repartir el cobro en tres, «Recibido» se lee como
+            «cuánto se recibió en total» — y no lo es: aquí sólo entran
+            los billetes, porque son lo único de lo que se da cambio. La
+            tarjeta y la transferencia llegan por su importe exacto.
+          -->
           <div class="flex items-center gap-3">
-            <label class="w-32 text-sm text-apagado">Recibido</label>
+            <label class="w-36 text-sm text-apagado">Efectivo recibido</label>
             <CampoPesos
               v-model="recibido"
               size="lg"
