@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import ClienteModal from '~/features/loyalty/components/ClienteModal.vue'
 import { useTicketPrinter } from '~/features/tickets/composables/useTicketPrinter'
-import type { Venta } from '~/shared/types/api'
+import { ApiError, useApi } from '~/shared/composables/useApi'
+import type { Cliente, Venta } from '~/shared/types/api'
 
 /**
  * Detalle de una venta: lo que se vendió, cómo se pagó, y las dos acciones
@@ -20,13 +22,48 @@ const emit = defineEmits<{
 
 const { imprimir, ver, imprimiendo } = useTicketPrinter()
 
+/*
+ | Sellar una venta ya cobrada.
+ |
+ | El caso de verdad: el cliente paga, ve el letrero del programa y
+ | pregunta. Sin esto habría que cancelar y volver a cobrar, que
+ | descuadra el turno, gasta folio y deja una cancelación falsa.
+ |
+ | Quién puede y quién no lo decide el servidor —`sellable`—, porque son
+ | cinco condiciones y cuatro la pantalla no las sabe.
+ */
+const api = useApi()
+
+const eligiendoCliente = ref(false)
+const sellando = ref(false)
+const errorSello = ref<string | null>(null)
+const selloPuesto = ref<string | null>(null)
+
+async function sellar(cliente: Cliente): Promise<void> {
+  eligiendoCliente.value = false
+  sellando.value = true
+  errorSello.value = null
+
+  try {
+    const r = await api.post<{ message: string }>(`/sales/${props.venta.id}/stamp`, {
+      customer_id: cliente.id
+    })
+
+    selloPuesto.value = r.message
+  } catch (e) {
+    errorSello.value = e instanceof ApiError ? e.message : 'No se pudo poner el sello.'
+  } finally {
+    sellando.value = false
+  }
+}
+
 const pidiendoMotivo = ref(false)
 const motivo = ref('')
 const errorImpresion = ref<string | null>(null)
 
 const cancelable = computed(() => props.venta.estado === 'paid')
 
-const error = computed(() => errorImpresion.value ?? props.errorCancelacion)
+const error = computed(() => errorImpresion.value ?? errorSello.value ?? props.errorCancelacion)
 
 /*
  * El motivo obligatorio no es burocracia: como no hay roles, cualquiera
@@ -99,7 +136,60 @@ function confirmarCancelacion() {
               {{ venta.cliente }}
             </dd>
           </template>
+
+          <!--
+            El cliente del programa es otra cosa que el nombre suelto de
+            arriba: aquél es para gritar el pedido, éste es a quién se le
+            puso el sello. Por eso van en renglones distintos.
+          -->
+          <template v-if="venta.cliente_lealtad">
+            <dt class="text-apagado">
+              Sello
+            </dt>
+            <dd class="text-right">
+              {{ venta.cliente_lealtad.nombre }}
+              <span class="text-apagado tabular-nums">
+                ···{{ venta.cliente_lealtad.telefono_termina_en }}
+              </span>
+            </dd>
+          </template>
         </dl>
+
+        <!--
+          La oferta de sellar, sólo cuando de verdad se puede.
+
+          Un botón que casi siempre rebota enseña a no fiarse de los
+          botones, así que esto sale únicamente si el servidor dice que
+          esta venta todavía admite sello.
+        -->
+        <div
+          v-if="venta.sellable && selloPuesto === null"
+          class="rounded-xl border border-borde bg-hundido px-4 py-3
+                 flex flex-wrap items-center justify-between gap-3"
+        >
+          <p class="text-sm text-tinta-2 min-w-0">
+            ¿El cliente preguntó por los sellos después de pagar?
+          </p>
+          <UButton
+            size="sm"
+            variant="outline"
+            color="neutral"
+            icon="i-lucide-stamp"
+            class="shrink-0"
+            :loading="sellando"
+            @click="eligiendoCliente = true"
+          >
+            Poner sello
+          </UButton>
+        </div>
+
+        <UAlert
+          v-if="selloPuesto"
+          color="success"
+          variant="subtle"
+          icon="i-lucide-stamp"
+          :title="selloPuesto"
+        />
 
         <div class="border-t border-borde pt-3 space-y-1">
           <div
@@ -259,4 +349,15 @@ function confirmarCancelacion() {
       </div>
     </template>
   </UModal>
+
+  <!--
+    Hermano del modal, no hijo: el slot por omisión de `UModal` es su
+    disparador, así que meterlo dentro lo pintaría como el botón que
+    abre esta ventana en lugar de como una ventana encima.
+  -->
+  <ClienteModal
+    v-if="eligiendoCliente"
+    @elegido="sellar"
+    @cerrar="eligiendoCliente = false"
+  />
 </template>

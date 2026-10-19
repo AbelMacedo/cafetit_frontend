@@ -4,6 +4,9 @@ import { useCatalog } from '~/features/catalog/composables/useCatalog'
 import SelectorCategoria from '~/features/catalog/components/SelectorCategoria.vue'
 import TarjetaProducto from '~/features/catalog/components/TarjetaProducto.vue'
 import { etiquetaSinVenta, motivoSinVenta } from '~/features/catalog/utils/existencias'
+import ClienteModal from '~/features/loyalty/components/ClienteModal.vue'
+import TarjetaSellos from '~/features/loyalty/components/TarjetaSellos.vue'
+import { useLoyalty } from '~/features/loyalty/composables/useLoyalty'
 import CobroModal from '~/features/sales/components/CobroModal.vue'
 import DescuentoModal from '~/features/sales/components/DescuentoModal.vue'
 import { useAtajosVenta } from '~/features/sales/composables/useAtajosVenta'
@@ -11,7 +14,7 @@ import { type LineaCarrito, type TipoDescuento, useCartStore } from '~/features/
 import { useTicketPrinter } from '~/features/tickets/composables/useTicketPrinter'
 import { ApiError, useApi } from '~/shared/composables/useApi'
 import { formatearCentavos } from '~/shared/utils/dinero'
-import type { ApiResource, Product, ProductVariant, Venta } from '~/shared/types/api'
+import type { ApiResource, Cliente, Product, ProductVariant, Venta } from '~/shared/types/api'
 
 // La pantalla de venta es una superficie de trabajo a pantalla completa:
 // rejilla de productos y carrito pegado al borde, sin relleno del armazón.
@@ -24,6 +27,44 @@ const caja = useCashSessionStore()
 const { categorias, productosVisibles, categoriaActiva, busqueda, cargar: cargarCatalogo } = useCatalog()
 
 const mostrarCobro = ref(false)
+const mostrarCliente = ref(false)
+
+/*
+ | El programa de lealtad, en el mostrador.
+ |
+ | Se consulta al entrar y no en cada venta: si está apagado, nada de
+ | esto se pinta, y ofrecer sellos que no se van a poner sería prometer
+ | algo que no ocurre.
+ */
+const lealtad = useLoyalty()
+
+const sellosParaPremio = computed(() => lealtad.programa.value?.sellos_para_premio ?? 10)
+
+const sellosDelCliente = computed(() => carrito.clienteLealtad?.sellos ?? 0)
+
+/**
+ * Si este cliente puede canjear hoy.
+ *
+ * Son los sellos que tenía al identificarlo: el décimo de ESTA venta
+ * todavía no existe. El servidor sella primero y canjea después, así
+ * que quien llega con nueve y hoy gana el décimo sí puede canjear — pero
+ * eso se sabrá al cobrar, y el botón aparecerá en la siguiente venta.
+ */
+const puedeCanjear = computed(() =>
+  carrito.clienteLealtad !== null
+  && lealtad.activo.value
+  && lealtad.vigentes.value.length > 0
+  && sellosDelCliente.value >= sellosParaPremio.value
+)
+
+const opcionesPremio = computed(() =>
+  lealtad.vigentes.value.map(r => ({ label: r.nombre, value: r.id }))
+)
+
+function elegirCliente(cliente: Cliente): void {
+  carrito.clienteLealtad = cliente
+  mostrarCliente.value = false
+}
 const cobrando = ref(false)
 const errorCobro = ref<string | null>(null)
 const ultimoTicket = ref<{ id: number, folio: number, total: string, cambio: string | null } | null>(null)
@@ -37,6 +78,19 @@ const { imprimir, imprimiendo } = useTicketPrinter()
 
 onMounted(async () => {
   await Promise.all([caja.cargar(), cargarCatalogo()])
+
+  /*
+   | El programa se consulta aparte y sin bloquear.
+   |
+   | Si lealtad falla o está apagada, el mostrador tiene que poder
+   | cobrar igual: nada de esto puede quedarse entre el cajero y la
+   | caja registradora.
+   */
+  try {
+    await lealtad.cargarPrograma()
+  } catch {
+    // Silencio a propósito: sin programa, no se pinta nada de lealtad.
+  }
 })
 
 /*
@@ -409,6 +463,85 @@ function siguienteVenta() {
             size="lg"
             class="w-full"
           />
+
+          <!--
+            El cliente del programa, debajo del nombre suelto y aparte.
+
+            Son dos cosas distintas y se han confundido antes: arriba va
+            el nombre para gritar el pedido —«para Beto»—, aquí va a
+            quién se le pone el sello. Sólo se pinta si el programa está
+            encendido: ofrecer sellos que no se van a poner es prometer
+            algo que no ocurre.
+          -->
+          <template v-if="lealtad.activo.value">
+            <UButton
+              v-if="!carrito.clienteLealtad"
+              block
+              size="lg"
+              variant="outline"
+              color="neutral"
+              icon="i-lucide-stamp"
+              @click="mostrarCliente = true"
+            >
+              Sellos · identificar cliente
+            </UButton>
+
+            <div
+              v-else
+              class="space-y-2"
+            >
+              <TarjetaSellos
+                compacta
+                :cliente="carrito.clienteLealtad"
+                :meta="sellosParaPremio"
+              />
+
+              <!--
+                Canjear es una elección explícita, nunca automática.
+
+                Que el premio se aplique solo al llegar a diez sería
+                gastarle los sellos a alguien que quizá quería
+                guardarlos para la semana que viene.
+              -->
+              <div
+                v-if="puedeCanjear"
+                class="space-y-2"
+              >
+                <USelectMenu
+                  v-model="carrito.premioId"
+                  :items="opcionesPremio"
+                  value-key="value"
+                  placeholder="Canjear un premio…"
+                  size="lg"
+                  class="w-full"
+                />
+
+                <p
+                  v-if="carrito.premioId"
+                  class="text-xs text-naranja-700 dark:text-naranja-300 flex items-start gap-1.5"
+                >
+                  <UIcon
+                    name="i-lucide-gift"
+                    class="size-3.5 shrink-0 mt-0.5"
+                  />
+                  Se agregará al cobrar y gastará
+                  {{ sellosParaPremio }} sellos.
+                </p>
+              </div>
+
+              <div class="flex justify-end">
+                <UButton
+                  size="xs"
+                  variant="ghost"
+                  color="neutral"
+                  icon="i-lucide-x"
+                  @click="carrito.quitarCliente()"
+                >
+                  Quitar cliente
+                </UButton>
+              </div>
+            </div>
+          </template>
         </div>
 
         <div class="flex-1 overflow-y-auto p-3 space-y-2">
@@ -660,6 +793,12 @@ function siguienteVenta() {
       @aplicar="aplicarDescuento"
       @quitar="quitarDescuento"
       @cerrar="descontando = null"
+    />
+
+    <ClienteModal
+      v-if="mostrarCliente"
+      @elegido="elegirCliente"
+      @cerrar="mostrarCliente = false"
     />
 
     <CobroModal

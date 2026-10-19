@@ -414,6 +414,18 @@ function dia(iso: string): string | null {
 
               <td class="px-3 lg:px-4 py-4 text-center w-1/3 max-w-0 truncate">
                 <span v-if="v.cliente">{{ v.cliente }}</span>
+
+                <!--
+                  Si no hay nombre suelto pero sí cliente del programa, se
+                  enseña ése: es más informativo que «Sin nombre», y la
+                  terminación del teléfono deja confirmar de quién se
+                  habla sin tener que abrir la venta.
+                -->
+                <span v-else-if="v.cliente_lealtad">
+                  {{ v.cliente_lealtad.nombre }}
+                  <span class="text-apagado tabular-nums">···{{ v.cliente_lealtad.telefono_termina_en }}</span>
+                </span>
+
                 <span
                   v-else
                   class="text-apagado-2"

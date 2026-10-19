@@ -86,6 +86,13 @@ const secciones = [
     ]
   },
   {
+    titulo: 'Lealtad',
+    items: [
+      { ruta: '/clientes', etiqueta: 'Clientes', icono: 'i-lucide-users-round' },
+      { ruta: '/recompensas', etiqueta: 'Recompensas', icono: 'i-lucide-gift' }
+    ]
+  },
+  {
     titulo: 'Configuración',
     items: [
       { ruta: '/', etiqueta: 'Catálogo', icono: 'i-lucide-coffee' },

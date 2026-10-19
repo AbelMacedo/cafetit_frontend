@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { Product, ProductVariant } from '~/shared/types/api'
+import type { Cliente, Product, ProductVariant } from '~/shared/types/api'
 
 export type TipoDescuento = 'none' | 'percent' | 'amount'
 
@@ -30,6 +30,24 @@ export interface LineaCarrito {
 export const useCartStore = defineStore('cart', () => {
   const lineas = ref<LineaCarrito[]>([])
   const cliente = ref('')
+
+  /**
+   * El cliente del programa de lealtad.
+   *
+   * Distinto de `cliente`, que es texto libre para gritar el pedido
+   * —«para Beto»— y sigue valiendo igual. Esto es a quién se le pone el
+   * sello, y sólo existe si alguien dio su teléfono.
+   */
+  const clienteLealtad = ref<Cliente | null>(null)
+
+  /**
+   * El premio que se canjea en este mismo cobro.
+   *
+   * Va con la venta y no después porque el premio tiene que salir en el
+   * ticket que se entrega. Canjear sobre un papel ya impreso lo dejaría
+   * diciendo una cosa y la base otra.
+   */
+  const premioId = ref<number | undefined>(undefined)
   const descuentoTipo = ref<TipoDescuento>('none')
   const descuentoValor = ref(0)
   const descuentoMotivo = ref('')
@@ -148,9 +166,24 @@ export const useCartStore = defineStore('cart', () => {
     linea.descuentoMotivo = motivo
   }
 
+  /**
+   * Quitar al cliente quita también el canje.
+   *
+   * Sin esto queda un premio apuntado sin saldo de quién descontarlo, y
+   * el cobro se iría al servidor con un canje imposible. El servidor lo
+   * rechazaría —y bien— pero el cajero se enteraría al final, con la
+   * fila esperando.
+   */
+  function quitarCliente() {
+    clienteLealtad.value = null
+    premioId.value = undefined
+  }
+
   function limpiar() {
     lineas.value = []
     cliente.value = ''
+    clienteLealtad.value = null
+    premioId.value = undefined
     descuentoTipo.value = 'none'
     descuentoValor.value = 0
     descuentoMotivo.value = ''
@@ -174,6 +207,8 @@ export const useCartStore = defineStore('cart', () => {
       discount_reason: descuentoMotivo.value || undefined,
       round_to_peso: redondear.value,
       customer_name: cliente.value || undefined,
+      customer_id: clienteLealtad.value?.id,
+      redeem_reward_id: clienteLealtad.value ? premioId.value : undefined,
       payments: pagos,
       idempotency_key: idempotencyKey.value
     }
@@ -182,6 +217,8 @@ export const useCartStore = defineStore('cart', () => {
   return {
     lineas,
     cliente,
+    clienteLealtad,
+    premioId,
     descuentoTipo,
     descuentoValor,
     descuentoMotivo,
@@ -201,6 +238,7 @@ export const useCartStore = defineStore('cart', () => {
     cambiarCantidad,
     quitar,
     aplicarDescuentoLinea,
+    quitarCliente,
     limpiar,
     aPeticion
   }

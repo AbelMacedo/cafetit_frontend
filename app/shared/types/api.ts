@@ -199,6 +199,27 @@ export interface Venta {
   iva_incluido: Money
   lineas?: LineaVenta[]
   pagos?: PagoVenta[]
+  /**
+   * El cliente del programa de sellos, cuando lo hubo.
+   *
+   * Distinto de `cliente`, que es texto libre para gritar el pedido.
+   * Nunca trae un teléfono completo: no se guarda.
+   */
+  cliente_lealtad?: {
+    id: number
+    nombre: string
+    telefono_termina_en: string
+  } | null
+
+  /**
+   * Si esta venta todavía admite sello.
+   *
+   * Lo decide el servidor: son cinco condiciones y cuatro la pantalla
+   * no las sabe —programa encendido, consumo mínimo, turno abierto y
+   * que no tenga ya cliente—.
+   */
+  sellable?: boolean
+
   cancelacion: { fecha: string, motivo: string } | null
 }
 
@@ -530,4 +551,80 @@ export interface AccionBitacora {
   texto: string
   grupo: string
   delicada: boolean
+}
+
+/*
+| Lealtad
+|
+| El teléfono NO se guarda en ningún sitio: la base tiene una huella
+| irreversible y los últimos cuatro dígitos. Por eso aquí nunca hay un
+| campo `telefono` de vuelta — sólo `telefono_termina_en`, que es lo que
+| el cajero confirma en voz alta: «¿el que termina en 4417?».
+*/
+
+export interface Cliente {
+  id: number
+  nombre: string
+  telefono_termina_en: string
+  /** Saldo de sellos. Lo calcula el servidor; la pantalla nunca lo suma. */
+  sellos?: number
+  desde: string | null
+  /** Fecha del último sello. Nula para quien se registró y no ha vuelto. */
+  ultima_visita?: string | null
+}
+
+/**
+ * Cómo está configurado el programa.
+ *
+ * Viaja con cada respuesta de lealtad porque la pantalla necesita saber
+ * si pintar algo de esto, y el servidor es el único que sabe la verdad.
+ */
+export interface ProgramaLealtad {
+  activo: boolean
+  sellos_para_premio: number
+  /** En centavos. Cero significa «cualquier compra cuenta». */
+  compra_minima: number
+}
+
+export interface AjustesLealtad {
+  activo: boolean
+  compra_minima_cents: number
+  sellos_para_premio: number
+}
+
+/** Una recompensa tal como la lista el mostrador. */
+export interface RecompensaVigente {
+  id: number
+  nombre: string
+  hasta: string
+}
+
+/** Y tal como la administra quien prepara el mes. */
+export interface Recompensa {
+  id: number
+  nombre: string
+  desde: string
+  hasta: string
+  activa: boolean
+  product_variant_id: number | null
+  /** Nombre del artículo del catálogo, ya armado por el servidor. */
+  articulo: string | null
+  precio_lista: string | null
+}
+
+/** Una línea del historial del cliente: un sello o un canje. */
+export interface MovimientoLealtad {
+  tipo: 'sello' | 'canje'
+  cuando: string | null
+  venta_id?: number
+  recompensa?: string | null
+  sellos?: number
+  /** Quién lo puso. Que ningún sello sea anónimo es media defensa del programa. */
+  quien: string | null
+}
+
+/** La respuesta de buscar por teléfono: 200 aunque no exista. */
+export interface BusquedaCliente {
+  data: Cliente | null
+  programa: ProgramaLealtad
 }
